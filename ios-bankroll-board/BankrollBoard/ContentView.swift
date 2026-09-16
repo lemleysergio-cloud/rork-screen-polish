@@ -6,8 +6,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    /// Onboarding runs once, then the app lands on the Journey map.
+    @State private var hasFinishedOnboarding: Bool = true
+
     var body: some View {
-        OnboardingFlowView()
+        if hasFinishedOnboarding {
+            JourneyView()
+        } else {
+            OnboardingFlowView()
+        }
     }
 }
 

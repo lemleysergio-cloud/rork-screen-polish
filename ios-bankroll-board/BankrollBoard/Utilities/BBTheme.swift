@@ -19,6 +19,16 @@ enum BBTheme {
     static let goldSoft = Color(red: 0.851, green: 0.761, blue: 0.478).opacity(0.14)
     static let ink = Color(red: 0.953, green: 0.945, blue: 0.906)           // #F3F1E7
     static let inkMuted = Color(red: 0.663, green: 0.722, blue: 0.675)      // #A9B8AC
+    static let goldDeep = Color(red: 0.604, green: 0.475, blue: 0.161)      // #9A7929
+    static let goldBright = Color(red: 0.976, green: 0.855, blue: 0.518)    // #F9DA84
+    static let positive = Color(red: 0.694, green: 0.847, blue: 0.529)      // #B1D887
+
+    /// Left-to-right gold sweep used on the journey orbit and progress fills.
+    static let goldSweep = LinearGradient(
+        colors: [goldDeep, goldBright, goldBright, goldDeep],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
 
     // MARK: - Metrics
 
@@ -39,6 +49,22 @@ enum BBTheme {
     static let optionTitle: Font = .system(size: 17, weight: .semibold)
     static let optionSubtitle: Font = .system(size: 14, weight: .regular)
     static let caption: Font = .system(size: 13, weight: .regular)
+
+    /// Tabular serif numerals used on money figures.
+    static func money(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .regular, design: .serif)
+    }
+}
+
+extension Color {
+    /// Creates a color from a 24-bit RGB value, e.g. `0xD9C27A`.
+    init(rgb value: UInt32) {
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
 }
 
 extension View {

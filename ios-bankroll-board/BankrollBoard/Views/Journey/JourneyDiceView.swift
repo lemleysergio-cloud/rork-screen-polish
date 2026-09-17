@@ -100,15 +100,26 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             key.light?.type = .omni
             key.light?.intensity = 1_150
             key.light?.temperature = 5_600
-            key.position = SCNVector3(-3, 6, 5)
+            // High and nearly overhead so the top face reads as the lit plane
+            // instead of the upper-left edge.
+            key.position = SCNVector3(-1.1, 8.6, 2.4)
             scene.rootNode.addChildNode(key)
+
+            // Straight-down light keeps the top bright while side walls fall off.
+            let overhead = SCNNode()
+            overhead.light = SCNLight()
+            overhead.light?.type = .directional
+            overhead.light?.intensity = 430
+            overhead.light?.temperature = 5_400
+            overhead.eulerAngles = SCNVector3(degrees: -78, 6, 0)
+            scene.rootNode.addChildNode(overhead)
 
             let fill = SCNNode()
             fill.light = SCNLight()
             fill.light?.type = .omni
-            fill.light?.intensity = 130
+            fill.light?.intensity = 96
             fill.light?.color = UIColor(red: 0.53, green: 0.68, blue: 0.56, alpha: 1)
-            fill.position = SCNVector3(4, 1, 3)
+            fill.position = SCNVector3(3.4, 0.4, 3)
             scene.rootNode.addChildNode(fill)
 
             let ambient = SCNNode()
@@ -131,7 +142,7 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             box.materials = [material]
 
             dieNode.geometry = box
-            dieNode.eulerAngles = SCNVector3(degrees: 29, -36, -3)
+            dieNode.eulerAngles = Self.restEuler
             scene.rootNode.addChildNode(dieNode)
 
             addPips(value: 1, face: .front)
@@ -142,22 +153,35 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             addPips(value: 2, face: .bottom)
         }
 
+        /// Approved resting pose: five on top, one to the left, three to the right.
+        private static let restEuler = SCNVector3(degrees: 29, -36, -3)
+
+        /// Rolls along a fresh random tumble path each time, then settles back into
+        /// the same rest pose so the showing faces never change.
         func tumble(strong: Bool) {
             dieNode.removeAllActions()
-            let turns: Float = strong ? 4 : 2
-            let duration = strong ? 1.42 : 0.58
+
+            let turns = (strong ? 4 : 2) + Float.random(in: 0...1.75)
+            let duration = (strong ? 1.42 : 0.58) * Double.random(in: 0.88...1.14)
+            let axisX = Float.random(in: 0.55...1.4) * (Bool.random() ? 1 : -1)
+            let axisY = Float.random(in: 0.8...1.45) * (Bool.random() ? 1 : -1)
+            let axisZ = Float.random(in: 0.35...1.15) * (Bool.random() ? 1 : -1)
+
             let rotation = SCNAction.rotateBy(
-                x: CGFloat(Float.pi * turns),
-                y: CGFloat(Float.pi * turns * 1.08),
-                z: CGFloat(Float.pi * 2),
+                x: CGFloat(Float.pi * turns * axisX),
+                y: CGFloat(Float.pi * turns * axisY),
+                z: CGFloat(Float.pi * turns * axisZ),
                 duration: duration
             )
             rotation.timingMode = .easeInEaseOut
+
+            // Shortest-arc settle resolves to the rest orientation wherever the
+            // random spin happens to leave the die.
             let settle = SCNAction.rotateTo(
-                x: CGFloat(29 * Float.pi / 180),
-                y: CGFloat(-36 * Float.pi / 180),
-                z: CGFloat(-3 * Float.pi / 180),
-                duration: strong ? 0.20 : 0.10,
+                x: CGFloat(Self.restEuler.x),
+                y: CGFloat(Self.restEuler.y),
+                z: CGFloat(Self.restEuler.z),
+                duration: strong ? 0.26 : 0.15,
                 usesShortestUnitArc: true
             )
             settle.timingMode = .easeOut

@@ -73,7 +73,11 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
     final class Coordinator {
         let scene = SCNScene()
         let cameraNode = SCNNode()
+        /// Holds the approved three-quarter presentation angle.
+        private let tiltNode = SCNNode()
+        /// Spins inside the tilt node, so rolls change which numbers face out.
         private let dieNode = SCNNode()
+        private var lastLanding = SIMD3<Int>(0, 0, 0)
         var lastTumbleToken = 0
 
         init() {
@@ -98,34 +102,35 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             let key = SCNNode()
             key.light = SCNLight()
             key.light?.type = .omni
-            key.light?.intensity = 1_150
+            key.light?.intensity = 1_260
             key.light?.temperature = 5_600
-            // High and nearly overhead so the top face reads as the lit plane
-            // instead of the upper-left edge.
-            key.position = SCNVector3(-1.1, 8.6, 2.4)
+            // Above and to the LEFT, so top-left planes catch the light and the
+            // right side of the die falls into shadow.
+            key.position = SCNVector3(-5.6, 7.0, 4.2)
             scene.rootNode.addChildNode(key)
 
-            // Straight-down light keeps the top bright while side walls fall off.
-            let overhead = SCNNode()
-            overhead.light = SCNLight()
-            overhead.light?.type = .directional
-            overhead.light?.intensity = 430
-            overhead.light?.temperature = 5_400
-            overhead.eulerAngles = SCNVector3(degrees: -78, 6, 0)
-            scene.rootNode.addChildNode(overhead)
+            // Downward beam angled in from the same upper-left direction.
+            let sun = SCNNode()
+            sun.light = SCNLight()
+            sun.light?.type = .directional
+            sun.light?.intensity = 440
+            sun.light?.temperature = 5_400
+            sun.eulerAngles = SCNVector3(degrees: -56, -34, 0)
+            scene.rootNode.addChildNode(sun)
 
+            // Dim bounce only, so the shadow side keeps its falloff.
             let fill = SCNNode()
             fill.light = SCNLight()
             fill.light?.type = .omni
-            fill.light?.intensity = 96
+            fill.light?.intensity = 42
             fill.light?.color = UIColor(red: 0.53, green: 0.68, blue: 0.56, alpha: 1)
-            fill.position = SCNVector3(3.4, 0.4, 3)
+            fill.position = SCNVector3(3.2, -0.8, 3)
             scene.rootNode.addChildNode(fill)
 
             let ambient = SCNNode()
             ambient.light = SCNLight()
             ambient.light?.type = .ambient
-            ambient.light?.intensity = 340
+            ambient.light?.intensity = 250
             ambient.light?.color = UIColor(red: 0.66, green: 0.72, blue: 0.65, alpha: 1)
             scene.rootNode.addChildNode(ambient)
         }
@@ -142,8 +147,9 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             box.materials = [material]
 
             dieNode.geometry = box
-            dieNode.eulerAngles = Self.restEuler
-            scene.rootNode.addChildNode(dieNode)
+            tiltNode.eulerAngles = Self.restEuler
+            tiltNode.addChildNode(dieNode)
+            scene.rootNode.addChildNode(tiltNode)
 
             addPips(value: 1, face: .front)
             addPips(value: 6, face: .back)
@@ -153,11 +159,12 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             addPips(value: 2, face: .bottom)
         }
 
-        /// Approved resting pose: five on top, one to the left, three to the right.
+        /// Approved three-quarter presentation angle, applied to the tilt node.
         private static let restEuler = SCNVector3(degrees: 29, -36, -3)
 
-        /// Rolls along a fresh random tumble path each time, then settles back into
-        /// the same rest pose so the showing faces never change.
+        /// Rolls along a fresh random path, then snaps to a new quarter-turn
+        /// orientation so different numbers show after every roll while the cube
+        /// keeps its approved three-quarter presentation.
         func tumble(strong: Bool) {
             dieNode.removeAllActions()
 
@@ -175,17 +182,30 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
             )
             rotation.timingMode = .easeInEaseOut
 
-            // Shortest-arc settle resolves to the rest orientation wherever the
-            // random spin happens to leave the die.
+            // Quarter turns keep the faces square inside the tilt, so the cube
+            // still presents the same silhouette. Re-draw a landing that repeats
+            // the current one so the value visibly changes.
+            var landing = Self.randomFaceLanding()
+            while landing == lastLanding {
+                landing = Self.randomFaceLanding()
+            }
+            lastLanding = landing
+
+            let quarter = CGFloat.pi / 2
             let settle = SCNAction.rotateTo(
-                x: CGFloat(Self.restEuler.x),
-                y: CGFloat(Self.restEuler.y),
-                z: CGFloat(Self.restEuler.z),
-                duration: strong ? 0.26 : 0.15,
+                x: CGFloat(landing.x) * quarter,
+                y: CGFloat(landing.y) * quarter,
+                z: CGFloat(landing.z) * quarter,
+                duration: strong ? 0.26 : 0.16,
                 usesShortestUnitArc: true
             )
             settle.timingMode = .easeOut
             dieNode.runAction(.sequence([rotation, settle]))
+        }
+
+        /// Quarter-turn counts per axis, i.e. one axis-aligned cube orientation.
+        private static func randomFaceLanding() -> SIMD3<Int> {
+            SIMD3(Int.random(in: 0...3), Int.random(in: 0...3), Int.random(in: 0...3))
         }
 
         private enum Face {

@@ -17,7 +17,6 @@ struct JourneyOrbitView: View {
     @State private var tumbleToken = 0
     @State private var strongTumble = false
     @State private var ringPulse = false
-    @State private var dragStarted = false
 
     private let slotPositions: [CGPoint] = [
         .init(x: 0.12, y: 0.29),
@@ -28,6 +27,29 @@ struct JourneyOrbitView: View {
     ]
 
     var body: some View {
+        VStack(spacing: 0) {
+            orbitCanvas
+
+            // Caption sits under the ring so it never collides with the NEXT pill
+            // or the casino name labels on the lower stops.
+            VStack(spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("←").foregroundColor(JourneyPalette.gold)
+                    Text("Swipe to explore")
+                    Text("→").foregroundColor(JourneyPalette.gold)
+                }
+                .font(.system(size: 10, weight: .bold))
+
+                Text("Best-offer rank · #1 first")
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundColor(JourneyPalette.muted)
+            .padding(.top, 12)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var orbitCanvas: some View {
         GeometryReader { proxy in
             ZStack {
                 selectorBackground
@@ -36,15 +58,14 @@ struct JourneyOrbitView: View {
                     .frame(width: proxy.size.width + 64, height: proxy.size.height - 94)
                     .position(x: proxy.size.width / 2, y: proxy.size.height / 2 + 1)
                     .zIndex(1)
-                    .onTapGesture { tumble() }
 
                 JourneyDiceView(tumbleToken: tumbleToken, strongTumble: strongTumble)
                     .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.42)
                     .zIndex(4)
-                    .onTapGesture { tumble() }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Tumble the Journey die")
                     .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { tumble() }
 
                 JourneyFrontOrbit(pulsing: ringPulse)
                     .frame(width: proxy.size.width + 64, height: proxy.size.height - 94)
@@ -61,28 +82,19 @@ struct JourneyOrbitView: View {
                             )
                             .zIndex(node.relativeOffset == 0 ? 8 : 6)
                             .transition(.opacity.combined(with: .scale(scale: 0.88)))
-                            .onTapGesture { select(node) }
                     }
                 }
 
-                VStack(spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("←").foregroundColor(JourneyPalette.gold)
-                        Text("Swipe to explore")
-                        Text("→").foregroundColor(JourneyPalette.gold)
-                    }
-                    .font(.system(size: 10, weight: .bold))
-
-                    Text("Best-offer rank · #1 first")
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(JourneyPalette.muted)
-                .position(x: proxy.size.width / 2, y: proxy.size.height - 18)
-                .zIndex(9)
-                .allowsHitTesting(false)
+                // Horizontal-only pan layer: vertical drags fail immediately so the
+                // page keeps scrolling even when the touch starts on the ring.
+                JourneyOrbitGestureLayer(
+                    onHorizontalSwipe: { move(by: $0) },
+                    onTap: { handleTap(at: $0, in: proxy.size) }
+                )
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .zIndex(10)
             }
             .contentShape(Rectangle())
-            .simultaneousGesture(swipeGesture)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Interactive Journey offer selector")
             .accessibilityValue(accessibilityValue)
@@ -116,16 +128,26 @@ struct JourneyOrbitView: View {
         .allowsHitTesting(false)
     }
 
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { _ in dragStarted = true }
-            .onEnded { value in
-                defer { dragStarted = false }
-                let x = value.translation.width
-                let y = value.translation.height
-                guard abs(x) >= 32, abs(x) >= abs(y) * 1.2 else { return }
-                move(by: x < 0 ? 1 : -1)
+    /// Routes a tap on the orbit layer to the nearest casino stop, or rolls the die.
+    private func handleTap(at point: CGPoint, in size: CGSize) {
+        let hit = viewModel.visibleNodes
+            .filter { slotPositions.indices.contains($0.slot) }
+            .compactMap { node -> (node: JourneyVisibleNode, distance: CGFloat)? in
+                let slot = slotPositions[node.slot]
+                let center = CGPoint(x: size.width * slot.x, y: size.height * slot.y)
+                let dx = point.x - center.x
+                let dy = point.y - center.y
+                guard abs(dx) <= 46, abs(dy) <= 50 else { return nil }
+                return (node, dx * dx + dy * dy)
             }
+            .min { $0.distance < $1.distance }?
+            .node
+
+        if let hit {
+            select(hit)
+        } else {
+            tumble()
+        }
     }
 
     private var accessibilityValue: String {
@@ -134,7 +156,6 @@ struct JourneyOrbitView: View {
     }
 
     private func move(by delta: Int) {
-        guard !dragStarted || delta != 0 else { return }
         withAnimation(reduceMotion ? nil : .timingCurve(0.2, 0.8, 0.25, 1, duration: 0.38)) {
             viewModel.move(by: delta)
         }
@@ -165,6 +186,91 @@ struct JourneyOrbitView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + (strong ? 1.38 : 0.58)) {
             ringPulse = false
+        }
+    }
+}
+
+/// Transparent touch layer above the orbit.
+///
+/// A plain SwiftUI `DragGesture` competes with the enclosing `ScrollView` and
+/// swallows vertical drags that start on the ring. This UIKit layer instead uses a
+/// pan recognizer that fails as soon as a drag is more vertical than horizontal,
+/// and recognizes simultaneously with the scroll view, so up/down swipes always
+/// scroll the page while sideways swipes still rotate the orbit.
+private struct JourneyOrbitGestureLayer: UIViewRepresentable {
+    let onHorizontalSwipe: (Int) -> Void
+    let onTap: (CGPoint) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isAccessibilityElement = false
+
+        let pan = HorizontalPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePan(_:))
+        )
+        pan.delegate = context.coordinator
+        view.addGestureRecognizer(pan)
+
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap(_:))
+        )
+        tap.delegate = context.coordinator
+        view.addGestureRecognizer(tap)
+
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onHorizontalSwipe = onHorizontalSwipe
+        context.coordinator.onTap = onTap
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onHorizontalSwipe: onHorizontalSwipe, onTap: onTap)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onHorizontalSwipe: (Int) -> Void
+        var onTap: (CGPoint) -> Void
+
+        init(onHorizontalSwipe: @escaping (Int) -> Void, onTap: @escaping (CGPoint) -> Void) {
+            self.onHorizontalSwipe = onHorizontalSwipe
+            self.onTap = onTap
+        }
+
+        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard recognizer.state == .ended else { return }
+            let translation = recognizer.translation(in: recognizer.view)
+            guard abs(translation.x) >= 32, abs(translation.x) > abs(translation.y) else { return }
+            onHorizontalSwipe(translation.x < 0 ? 1 : -1)
+        }
+
+        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let view = recognizer.view else { return }
+            onTap(recognizer.location(in: view))
+        }
+
+        /// Never block the scroll view's own pan recognizer.
+        nonisolated func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+    }
+}
+
+/// Pan recognizer that gives up the moment a drag leans vertical.
+private final class HorizontalPanGestureRecognizer: UIPanGestureRecognizer {
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesMoved(touches, with: event)
+        guard state == .began || state == .changed else { return }
+        let translation = translation(in: view)
+        if abs(translation.y) > abs(translation.x) {
+            state = .failed
         }
     }
 }

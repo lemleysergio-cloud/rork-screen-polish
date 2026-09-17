@@ -15,7 +15,9 @@ final class JourneyViewModel {
     /// Ordered offers for the current region.
     private(set) var offers: [JourneyOffer] = JourneyContent.offers(for: "MI")
 
-    /// Index of the offer parked at the front of the orbit.
+    /// Unbounded orbit cursor. It keeps counting past either end of the catalog so
+    /// the ring can spin forever in one direction; `focusedOfferIndex` wraps it back
+    /// onto a real offer.
     private(set) var focusIndex: Int = 0
 
     /// Live drag offset in node steps while the user swipes the ring.
@@ -54,9 +56,19 @@ final class JourneyViewModel {
     /// Continuous orbit phase used to place nodes and sweep the ring.
     var orbitPhase: Double { Double(focusIndex) + dragProgress }
 
+    /// Catalog index of the offer parked at the front of the orbit.
+    var focusedOfferIndex: Int { wrapped(focusIndex) }
+
     var focusedOffer: JourneyOffer? {
-        guard offers.indices.contains(focusIndex) else { return nil }
-        return offers[focusIndex]
+        guard offers.indices.contains(focusedOfferIndex) else { return nil }
+        return offers[focusedOfferIndex]
+    }
+
+    /// Maps the unbounded orbit cursor onto a valid catalog index.
+    func wrapped(_ value: Int) -> Int {
+        guard !offers.isEmpty else { return 0 }
+        let count = offers.count
+        return ((value % count) + count) % count
     }
 
     /// Offer whose sheet is open, if any.
@@ -99,6 +111,7 @@ final class JourneyViewModel {
         return "Best-offer rank · #\(rank) of \(offers.count)"
     }
 
+
     // MARK: - Intent
 
     func selectRegion(_ code: String) {
@@ -119,21 +132,27 @@ final class JourneyViewModel {
         filter = newValue
     }
 
-    /// Moves orbit focus by whole steps, clamped to the catalog.
+    /// Moves orbit focus by whole steps. The ring is a closed loop, so there is no end to hit.
     func moveFocus(by delta: Int) {
-        guard !offers.isEmpty else { return }
-        let target = min(max(focusIndex + delta, 0), offers.count - 1)
-        guard target != focusIndex else { return }
-        focusIndex = target
+        guard !offers.isEmpty, delta != 0 else { return }
+        focusIndex += delta
     }
 
     func focus(on offerID: String) {
         guard let index = offers.firstIndex(where: { $0.id == offerID }) else { return }
-        if index == focusIndex {
+        if index == focusedOfferIndex {
             selectedOfferID = offerID
-        } else {
-            focusIndex = index
+            return
         }
+        moveFocus(by: shortestStep(to: index))
+    }
+
+    /// Shortest signed number of steps around the loop from the focused offer to `index`.
+    private func shortestStep(to index: Int) -> Int {
+        let count = offers.count
+        guard count > 0 else { return 0 }
+        let forward = ((index - focusedOfferIndex) % count + count) % count
+        return forward <= count / 2 ? forward : forward - count
     }
 
     /// Settles a finished drag onto the nearest node.
@@ -143,11 +162,10 @@ final class JourneyViewModel {
         moveFocus(by: steps)
     }
 
-    /// Clamps live drag so the ring cannot be swiped past either end.
+    /// The orbit is a closed loop, so live drag passes straight through — the user
+    /// can keep swiping in one direction and cycle around the full catalog.
     func clampedDrag(_ proposed: Double) -> Double {
-        let lower = Double(-focusIndex) - 0.35
-        let upper = Double(max(0, offers.count - 1 - focusIndex)) + 0.35
-        return min(max(proposed, lower), upper)
+        proposed
     }
 
     func rollDie() {

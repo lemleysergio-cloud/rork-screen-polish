@@ -19,39 +19,52 @@ struct JourneyOrbitView: View {
     let onRoll: () -> Void
     let onDieLand: (Int) -> Void
 
-    /// Angular gap between neighbouring nodes, in degrees.
-    private let spread: Double = 38
     /// Horizontal drag distance that advances exactly one node.
     private let stepWidth: Double = 96
     private let ringTilt: Double = -5
 
     @State private var isDragging: Bool = false
 
+    /// Nodes are spaced evenly around the whole ellipse, so operators ride the full
+    /// circle instead of bunching along the bottom.
+    private var spread: Double {
+        guard offers.count > 1 else { return 360 }
+        return 360 / Double(offers.count)
+    }
+
     var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            let center = CGPoint(x: size.width / 2, y: size.height * 0.56)
-            let radii = CGSize(width: size.width * 0.44, height: size.height * 0.28)
+        VStack(spacing: 12) {
+            GeometryReader { proxy in
+                let size = proxy.size
+                let center = CGPoint(x: size.width / 2, y: size.height * 0.52)
+                let radii = CGSize(width: size.width * 0.40, height: size.height * 0.27)
 
-            ZStack {
-                aura(center: center, radii: radii)
+                ZStack {
+                    aura(center: center, radii: radii)
 
-                ring(center: center, radii: radii, isFront: false)
+                    ring(center: center, radii: radii, isFront: false)
 
-                die(size: size)
+                    // Nodes on the far side of the orbit pass behind the die.
+                    ForEach(backNodes, id: \.offer.id) { entry in
+                        node(for: entry, center: center, radii: radii)
+                    }
 
-                ring(center: center, radii: radii, isFront: true)
+                    die(size: size)
 
-                ForEach(visibleNodes, id: \.offer.id) { entry in
-                    node(for: entry, center: center, radii: radii)
+                    ring(center: center, radii: radii, isFront: true)
+
+                    ForEach(frontNodes, id: \.offer.id) { entry in
+                        node(for: entry, center: center, radii: radii)
+                    }
                 }
+                .frame(width: size.width, height: size.height)
+                .contentShape(Rectangle())
+                .gesture(swipe)
             }
-            .frame(width: size.width, height: size.height)
-            .contentShape(Rectangle())
-            .gesture(swipe)
+            .frame(height: 392)
+
+            swipeHint
         }
-        .frame(height: 356)
-        .overlay(alignment: .bottom) { swipeHint }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Offer orbit")
         .accessibilityHint("Swipe left or right to explore offers and tumble the die")
@@ -161,23 +174,26 @@ struct JourneyOrbitView: View {
 
     private func node(for entry: OrbitNode, center: CGPoint, radii: CGSize) -> some View {
         let angle = Angle.degrees(90 + (Double(entry.index) - phase) * spread)
-        let depth = sin(angle.radians)
+        let depth = depth(of: entry)
         let point = CGPoint(
             x: center.x + radii.width * cos(angle.radians),
             y: center.y + radii.height * depth
         )
         let normalizedDepth = (depth + 1) / 2
-        let scale = 0.66 + 0.34 * normalizedDepth
+        let scale = 0.5 + 0.5 * normalizedDepth
         let isFocused = entry.isFocused
 
         return JourneyOrbitNode(
             offer: entry.offer,
             isFocused: isFocused,
+            // Only the focused operator is named. With every offer riding the ring,
+            // labels on neighbours would collide into an unreadable band of text.
+            showsLabel: isFocused,
             action: { onNodeTap(entry.offer.id) }
         )
         .scaleEffect(scale)
-        .opacity(0.35 + 0.65 * normalizedDepth)
-        .blur(radius: isFocused ? 0 : (1 - normalizedDepth) * 2.2)
+        .opacity(0.22 + 0.78 * normalizedDepth)
+        .blur(radius: isFocused ? 0 : (1 - normalizedDepth) * 2.6)
         .position(point)
         .zIndex(depth + (isFocused ? 4 : 0))
     }
@@ -220,7 +236,7 @@ struct JourneyOrbitView: View {
             }
     }
 
-    // MARK: - Node windowing
+    // MARK: - Nodes
 
     private struct OrbitNode {
         let index: Int
@@ -228,11 +244,25 @@ struct JourneyOrbitView: View {
         let isFocused: Bool
     }
 
-    /// Only the five nodes nearest the focus are rendered.
-    private var visibleNodes: [OrbitNode] {
-        offers.enumerated()
-            .filter { abs(Double($0.offset) - phase) <= 2.4 }
-            .map { OrbitNode(index: $0.offset, offer: $0.element, isFocused: $0.offset == focusIndex) }
+    /// Every offer rides the ring at once. Because the spacing divides 360 degrees
+    /// exactly, the layout repeats every full lap, so the orbit can spin forever in
+    /// either direction without any node popping in or out.
+    private var allNodes: [OrbitNode] {
+        let count = offers.count
+        guard count > 0 else { return [] }
+        let focused = ((focusIndex % count) + count) % count
+        return offers.enumerated().map { item in
+            OrbitNode(index: item.offset, offer: item.element, isFocused: item.offset == focused)
+        }
+    }
+
+    private var backNodes: [OrbitNode] { allNodes.filter { depth(of: $0) < 0 } }
+
+    private var frontNodes: [OrbitNode] { allNodes.filter { depth(of: $0) >= 0 } }
+
+    /// -1 at the back of the orbit, +1 at the front.
+    private func depth(of entry: OrbitNode) -> Double {
+        sin(Angle.degrees(90 + (Double(entry.index) - phase) * spread).radians)
     }
 }
 
@@ -242,6 +272,7 @@ struct JourneyOrbitView: View {
 private struct JourneyOrbitNode: View {
     let offer: JourneyOffer
     let isFocused: Bool
+    let showsLabel: Bool
     let action: () -> Void
 
     var body: some View {
@@ -309,6 +340,8 @@ private struct JourneyOrbitNode: View {
                         .foregroundStyle(isFocused ? BBTheme.gold : BBTheme.inkMuted.opacity(0.7))
                 }
                 .frame(width: 104)
+                .opacity(showsLabel ? 1 : 0)
+                .animation(.easeOut(duration: 0.18), value: showsLabel)
             }
         }
         .buttonStyle(BBPressStyle())

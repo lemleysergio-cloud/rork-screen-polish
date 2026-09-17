@@ -22,7 +22,8 @@ struct JourneyView: View {
                         regionName: model.region.name,
                         onChooseRegion: { model.isRegionPickerPresented = true }
                     )
-                    .padding(.top, 8)
+                    // Clears the status bar clock, Dynamic Island, and battery icons.
+                    .padding(.top, 38)
 
                     JourneyOrbitView(
                         offers: model.offers,
@@ -46,7 +47,7 @@ struct JourneyView: View {
                             model.dieLanded(on: face)
                         }
                     )
-                    .padding(.top, 14)
+                    .padding(.top, 6)
 
                     JourneyMoneyBoard(money: model.money, regionName: model.region.name)
                         .padding(.top, 34)

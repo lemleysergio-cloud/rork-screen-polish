@@ -41,6 +41,7 @@ struct JourneyTrailView: View {
             ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
                 JourneyOfferCard(
                     offer: offer,
+                    index: index,
                     isLast: index == offers.count - 1,
                     action: { onOpenOffer(offer.id) }
                 )
@@ -122,6 +123,7 @@ struct JourneyFilterBar: View {
 /// One offer on the trail: numbered route node, brand mark, and the money breakdown.
 struct JourneyOfferCard: View {
     let offer: JourneyOffer
+    let index: Int
     let isLast: Bool
     let action: () -> Void
 
@@ -167,19 +169,13 @@ struct JourneyOfferCard: View {
                 .padding(.top, 21)
 
             if !isLast {
-                Rectangle()
-                    .fill(.clear)
-                    .overlay {
-                        Rectangle()
-                            .stroke(
-                                BBTheme.gold.opacity(0.46),
-                                style: .init(lineWidth: 1.5, dash: [2, 3])
-                            )
-                            .frame(width: 1)
-                    }
-                    .frame(width: 1)
+                TrailWeave(bulgesLeft: index.isMultiple(of: 2))
+                    .stroke(
+                        BBTheme.gold.opacity(0.5),
+                        style: .init(lineWidth: 1.5, lineCap: .round, dash: [3, 5])
+                    )
                     .frame(maxHeight: .infinity)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
             }
         }
         .frame(width: 32)
@@ -358,6 +354,33 @@ struct JourneyCompass: View {
         .opacity(0.65)
         .rotationEffect(.degrees(25))
         .accessibilityHidden(true)
+    }
+}
+
+/// Hand-drawn treasure-map connector: a dashed path that bows out to one side
+/// between two route markers, alternating direction down the trail.
+private struct TrailWeave: Shape {
+    let bulgesLeft: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let midX = rect.midX
+        let reach = min(rect.width * 0.46, 13) * (bulgesLeft ? -1 : 1)
+        let third = rect.height / 3
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: rect.minY))
+        // Bow away from the column, then curl back to meet the next marker.
+        path.addCurve(
+            to: CGPoint(x: midX + reach, y: rect.minY + third * 1.5),
+            control1: CGPoint(x: midX + reach * 0.35, y: rect.minY + third * 0.4),
+            control2: CGPoint(x: midX + reach * 1.15, y: rect.minY + third * 0.95)
+        )
+        path.addCurve(
+            to: CGPoint(x: midX, y: rect.maxY),
+            control1: CGPoint(x: midX + reach * 0.85, y: rect.minY + third * 2.15),
+            control2: CGPoint(x: midX + reach * 0.2, y: rect.maxY - third * 0.35)
+        )
+        return path
     }
 }
 

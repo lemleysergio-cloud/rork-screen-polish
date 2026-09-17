@@ -112,7 +112,7 @@ struct JourneyDieView: UIViewRepresentable {
                 lens.wantsDepthOfField = false
                 return lens
             }()
-            camera.position = SCNVector3(0, 0, 11)
+            camera.position = SCNVector3(0, 0, 9.4)
             scene.rootNode.addChildNode(camera)
 
             return scene
@@ -160,11 +160,20 @@ struct JourneyDieView: UIViewRepresentable {
             return candidate
         }
 
-        /// Resting orientation that shows `face` toward the camera with a dimensional tilt.
+        /// Resting orientation that shows `face` toward the camera with the hero tilt.
         private static func orientation(for face: Int) -> simd_quatf {
-            let tilt = simd_quatf(angle: -0.46, axis: simd_float3(1, 0, 0))
-                * simd_quatf(angle: 0.62, axis: simd_float3(0, 1, 0))
-            return tilt * align(face: face)
+            restTilt * align(face: face)
+        }
+
+        /// Hero tilt from the web build's `DIE_ORIENTATIONS` entry
+        /// (`rotateX(29deg) rotateY(-36deg) rotateZ(-3deg)`), converted from CSS's
+        /// y-down axes to SceneKit's right-handed, y-up axes.
+        private static var restTilt: simd_quatf {
+            let radians: (Float) -> Float = { $0 * .pi / 180 }
+            let x = simd_quatf(angle: radians(-29), axis: simd_float3(1, 0, 0))
+            let y = simd_quatf(angle: radians(-36), axis: simd_float3(0, 1, 0))
+            let z = simd_quatf(angle: radians(3), axis: simd_float3(0, 0, 1))
+            return x * y * z
         }
 
         /// Rotation that brings the given face's normal to +Z.
@@ -237,7 +246,7 @@ nonisolated enum DieFace {
                 cg.fill(bounds)
             }
 
-            let pipRadius = side * 0.072
+            let pipRadius = side * 0.079
             for pip in pips[value] ?? [] {
                 let center = CGPoint(x: pip.x * side, y: pip.y * side)
                 let rect = CGRect(

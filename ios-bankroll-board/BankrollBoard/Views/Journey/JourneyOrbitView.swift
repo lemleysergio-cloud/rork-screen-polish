@@ -30,15 +30,15 @@ struct JourneyOrbitView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let center = CGPoint(x: size.width / 2, y: size.height * 0.53)
-            let radii = CGSize(width: size.width * 0.44, height: size.height * 0.30)
+            let center = CGPoint(x: size.width / 2, y: size.height * 0.56)
+            let radii = CGSize(width: size.width * 0.44, height: size.height * 0.28)
 
             ZStack {
                 aura(center: center, radii: radii)
 
                 ring(center: center, radii: radii, isFront: false)
 
-                die(center: center, radii: radii)
+                die(size: size)
 
                 ring(center: center, radii: radii, isFront: true)
 
@@ -50,12 +50,13 @@ struct JourneyOrbitView: View {
             .contentShape(Rectangle())
             .gesture(swipe)
         }
-        .frame(height: 330)
+        .frame(height: 356)
         .overlay(alignment: .bottom) { swipeHint }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Offer orbit")
-        .accessibilityHint("Swipe left or right to explore offers")
+        .accessibilityHint("Swipe left or right to explore offers and tumble the die")
         .accessibilityAdjustableAction { direction in
+            onRoll()
             switch direction {
             case .increment: onDragChange(1); onDragEnd()
             case .decrement: onDragChange(-1); onDragEnd()
@@ -131,24 +132,31 @@ struct JourneyOrbitView: View {
         return CGFloat(wrapped < 0 ? wrapped + 1 : wrapped)
     }
 
-    private func die(center: CGPoint, radii: CGSize) -> some View {
-        let side = min(radii.width * 1.05, 178)
+    /// The hero die. Sits at 42% of the container height (matching the web layout)
+    /// and is purely presentational: the ring gesture drives its tumble.
+    private func die(size: CGSize) -> some View {
+        let side = min(size.width * 0.62, 236)
         return ZStack {
             Ellipse()
-                .fill(BBTheme.canvasDeep.opacity(0.55))
-                .frame(width: side * 0.78, height: side * 0.17)
-                .blur(radius: 12)
-                .offset(y: side * 0.44)
+                .fill(BBTheme.canvasDeep.opacity(0.6))
+                .frame(width: side * 0.7, height: side * 0.15)
+                .blur(radius: 14)
+                .offset(y: side * 0.46)
 
-            Button(action: onRoll) {
-                JourneyDieView(rollToken: rollToken, onLand: onDieLand)
-                    .frame(width: side, height: side)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(BBPressStyle())
-            .accessibilityLabel("Tumble the Journey die")
+            Ellipse()
+                .fill(BBTheme.gold.opacity(0.1))
+                .frame(width: side * 0.9, height: side * 0.22)
+                .blur(radius: 22)
+                .offset(y: side * 0.4)
+
+            JourneyDieView(rollToken: rollToken, onLand: onDieLand)
+                .frame(width: side, height: side)
+                .scaleEffect(isDragging ? 1.04 : 1)
+                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isDragging)
         }
-        .position(x: center.x, y: center.y - radii.height * 0.42)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .position(x: size.width / 2, y: size.height * 0.42)
     }
 
     private func node(for entry: OrbitNode, center: CGPoint, radii: CGSize) -> some View {
@@ -178,7 +186,7 @@ struct JourneyOrbitView: View {
         VStack(spacing: 4) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.left")
-                Text("Swipe to explore")
+                Text("Swipe to explore and roll")
                     .font(.system(size: 12, weight: .medium))
                 Image(systemName: "arrow.right")
             }
@@ -199,7 +207,11 @@ struct JourneyOrbitView: View {
     private var swipe: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
-                isDragging = true
+                // The first movement of a swipe sets the die tumbling.
+                if !isDragging {
+                    isDragging = true
+                    onRoll()
+                }
                 onDragChange(-Double(value.translation.width) / stepWidth)
             }
             .onEnded { _ in

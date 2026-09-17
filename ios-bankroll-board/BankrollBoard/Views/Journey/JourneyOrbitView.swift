@@ -97,9 +97,9 @@ struct JourneyOrbitView: View {
             .allowsHitTesting(false)
     }
 
-    /// Half of the orbit, rendered like a planetary ring: a soft outer halo, a
-    /// solid gold band, and a bright inner filament, with the front half heavier
-    /// than the back so the band reads as a flat disc tilted in space.
+    /// Half of the orbit, drawn as lit gold wire: a soft glow hugging one thin
+    /// crisp line, with the front half brighter than the back so the ring reads
+    /// as a flat disc tilted in space.
     private func ring(center: CGPoint, radii: CGSize, isFront: Bool) -> some View {
         let rect = CGRect(
             x: center.x - radii.width,
@@ -108,54 +108,39 @@ struct JourneyOrbitView: View {
             height: radii.height * 2
         )
         let sweepStart = sweepAnchor
-        let weight: Double = isFront ? 1 : 0.52
 
         return ZStack {
-            // Wide, very soft halo: the light the ring casts into the canvas.
+            // Soft warm glow pressed right against the line.
             OrbitArc(rect: rect, isFront: isFront)
                 .stroke(
-                    BBTheme.gold.opacity(0.26 * weight),
-                    style: .init(lineWidth: 16, lineCap: .round)
+                    BBTheme.gold.opacity(isFront ? 0.5 : 0.3),
+                    style: .init(lineWidth: isFront ? 8 : 5.5, lineCap: .round)
                 )
-                .blur(radius: 16)
+                .blur(radius: isFront ? 7 : 5)
 
-            // Mid bloom, tighter and brighter.
-            OrbitArc(rect: rect, isFront: isFront)
-                .stroke(
-                    BBTheme.gold.opacity(0.4 * weight),
-                    style: .init(lineWidth: 7, lineCap: .round)
-                )
-                .blur(radius: 6)
-
-            // The band itself.
+            // The wire itself: one thin, clean gold line.
             OrbitArc(rect: rect, isFront: isFront)
                 .stroke(
                     BBTheme.goldSweep,
-                    style: .init(lineWidth: isFront ? 3.4 : 2, lineCap: .round)
+                    style: .init(lineWidth: isFront ? 2.2 : 1.5, lineCap: .round)
                 )
-                .opacity(isFront ? 0.98 : 0.55)
+                .opacity(isFront ? 1 : 0.6)
 
-            // Hot filament down the middle of the band gives it its metallic edge.
+            // Traveling glint: a small bright spot under the focused node that
+            // follows the swipe, kept subtle so it reads as light on the wire.
             OrbitArc(rect: rect, isFront: isFront)
-                .stroke(
-                    BBTheme.goldBright.opacity(isFront ? 0.85 : 0.35),
-                    style: .init(lineWidth: isFront ? 1.1 : 0.7, lineCap: .round)
-                )
-
-            // Traveling highlight: sits under the focused node and follows the swipe.
-            OrbitArc(rect: rect, isFront: isFront)
-                .trim(from: sweepStart, to: sweepStart + 0.16)
+                .trim(from: sweepStart, to: sweepStart + 0.14)
                 .stroke(
                     LinearGradient(
                         colors: [.clear, BBTheme.goldBright, .clear],
                         startPoint: .leading,
                         endPoint: .trailing
                     ),
-                    style: .init(lineWidth: isFront ? 5 : 3, lineCap: .round)
+                    style: .init(lineWidth: isFront ? 3.2 : 2, lineCap: .round)
                 )
-                .opacity(isFront ? 1 : 0.4)
-                .blur(radius: isFront ? 1.5 : 2.5)
-                .shadow(color: BBTheme.gold.opacity(0.75), radius: 11)
+                .opacity(isFront ? 0.9 : 0.35)
+                .blur(radius: isFront ? 1 : 2)
+                .shadow(color: BBTheme.gold.opacity(0.55), radius: 6)
         }
         .rotationEffect(.degrees(ringTilt), anchor: .center)
         .allowsHitTesting(false)

@@ -37,7 +37,7 @@ struct JourneyTrailView: View {
     }
 
     private var trail: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
                 JourneyOfferCard(
                     offer: offer,
@@ -45,14 +45,15 @@ struct JourneyTrailView: View {
                     isLast: index == offers.count - 1,
                     action: { onOpenOffer(offer.id) }
                 )
+                .background {
+                    // Keep drawing surfaces row-sized rather than the entire long trail.
+                    GridDots()
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .padding(.horizontal, BBTheme.screenMargin)
-        .background(alignment: .topLeading) {
-            // Dotted paper grid, matching the web offer map.
-            GridDots()
-                .allowsHitTesting(false)
-        }
     }
 
     private var emptyState: some View {
@@ -145,10 +146,27 @@ struct JourneyOfferCard: View {
             .accessibilityHint("Opens offer details")
         }
         .padding(.bottom, isLast ? 4 : 25)
+        .background(alignment: .topLeading) {
+            if !isLast {
+                GeometryReader { geometry in
+                    // Marker bottom is y=53. Include the inter-card gap and the
+                    // next row's 21pt top inset so the curve meets its marker.
+                    TrailWeave(bulgesLeft: index.isMultiple(of: 2))
+                        .stroke(
+                            BBTheme.gold.opacity(0.55),
+                            style: .init(lineWidth: 1.5, lineCap: .round, dash: [4, 6])
+                        )
+                        .frame(width: 32, height: max(0, geometry.size.height - 32))
+                        .offset(y: 53)
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
     }
 
     private var routeNode: some View {
-        VStack(spacing: 0) {
+        Group {
             Text(isComplete ? "✓" : offer.trailMarker)
                 .font(.system(size: isComplete ? 16 : 11, weight: .medium))
                 .monospacedDigit()
@@ -168,15 +186,6 @@ struct JourneyOfferCard: View {
                 }
                 .padding(.top, 21)
 
-            if !isLast {
-                TrailWeave(bulgesLeft: index.isMultiple(of: 2))
-                    .stroke(
-                        BBTheme.gold.opacity(0.5),
-                        style: .init(lineWidth: 1.5, lineCap: .round, dash: [3, 5])
-                    )
-                    .frame(maxHeight: .infinity)
-                    .padding(.vertical, 3)
-            }
         }
         .frame(width: 32)
     }
@@ -387,21 +396,21 @@ private struct TrailWeave: Shape {
 /// Faint dot grid behind the trail cards.
 private struct GridDots: View {
     var body: some View {
-        Canvas { context, size in
+        Canvas(rendersAsynchronously: true) { context, size in
+            guard size.width.isFinite, size.height.isFinite else { return }
             let spacing: CGFloat = 20
             let dot: CGFloat = 1.4
+            var dots = Path()
             var y: CGFloat = 0
             while y < size.height {
                 var x: CGFloat = 0
                 while x < size.width {
-                    context.fill(
-                        Path(ellipseIn: CGRect(x: x, y: y, width: dot, height: dot)),
-                        with: .color(Color(rgb: 0xB9C4A5).opacity(0.09))
-                    )
+                    dots.addEllipse(in: CGRect(x: x, y: y, width: dot, height: dot))
                     x += spacing
                 }
                 y += spacing
             }
+            context.fill(dots, with: .color(Color(rgb: 0xB9C4A5).opacity(0.09)))
         }
     }
 }

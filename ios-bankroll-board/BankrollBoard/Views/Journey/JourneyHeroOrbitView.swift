@@ -82,7 +82,7 @@ struct JourneyOrbitView: View {
                 .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
-            .gesture(swipeGesture)
+            .simultaneousGesture(swipeGesture)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Interactive Journey offer selector")
             .accessibilityValue(accessibilityValue)

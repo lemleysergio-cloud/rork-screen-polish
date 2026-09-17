@@ -71,6 +71,7 @@ struct JourneyHeroScreen: View {
                 .padding(.bottom, 120)
             }
             .scrollIndicators(.hidden)
+            .accessibilityIdentifier("journey.page")
 
             BBTabBar(selection: $selectedTab)
                 .padding(.bottom, 6)
@@ -183,6 +184,7 @@ struct JourneyHeroScreen: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(JourneyPalette.gold.opacity(0.42), lineWidth: 1.2))
         }
         .accessibilityLabel("Choose bonus state, currently \(viewModel.selectedState.displayName)")
+        .accessibilityIdentifier("journey.statePicker")
     }
 
     // MARK: - Summary

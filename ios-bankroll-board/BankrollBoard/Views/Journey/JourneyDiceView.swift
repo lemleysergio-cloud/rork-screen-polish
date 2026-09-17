@@ -52,7 +52,10 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
         view.autoenablesDefaultLighting = false
         view.antialiasingMode = .multisampling4X
         view.allowsCameraControl = false
-        view.rendersContinuously = true
+        // SceneKit redraws for actions and scene changes, not while idle/offscreen.
+        view.rendersContinuously = false
+        view.isPlaying = true
+        view.isUserInteractionEnabled = false
         return view
     }
 
@@ -60,6 +63,11 @@ private struct JourneyDiceSceneView: UIViewRepresentable {
         guard context.coordinator.lastTumbleToken != tumbleToken else { return }
         context.coordinator.lastTumbleToken = tumbleToken
         context.coordinator.tumble(strong: strongTumble)
+    }
+
+    static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) {
+        view.isPlaying = false
+        view.scene = nil
     }
 
     final class Coordinator {

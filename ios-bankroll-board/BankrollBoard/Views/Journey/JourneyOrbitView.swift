@@ -21,7 +21,8 @@ struct JourneyOrbitView: View {
 
     /// Horizontal drag distance that advances exactly one node.
     private let stepWidth: Double = 96
-    private let ringTilt: Double = -5
+    /// The ring is tilted in space, Saturn-style; nodes ride the same rotated plane.
+    private let ringTilt: Double = -10
 
     @State private var isDragging: Bool = false
 
@@ -37,7 +38,7 @@ struct JourneyOrbitView: View {
             GeometryReader { proxy in
                 let size = proxy.size
                 let center = CGPoint(x: size.width / 2, y: size.height * 0.52)
-                let radii = CGSize(width: size.width * 0.40, height: size.height * 0.27)
+                let radii = CGSize(width: size.width * 0.465, height: size.height * 0.29)
 
                 ZStack {
                     aura(center: center, radii: radii)
@@ -170,7 +171,7 @@ struct JourneyOrbitView: View {
     /// The hero die. Sits at 42% of the container height (matching the web layout)
     /// and is purely presentational: the ring gesture drives its tumble.
     private func die(size: CGSize) -> some View {
-        let side = min(size.width * 0.62, 236)
+        let side = min(size.width * 0.54, 210)
         return ZStack {
             Ellipse()
                 .fill(BBTheme.canvasDeep.opacity(0.6))
@@ -201,6 +202,7 @@ struct JourneyOrbitView: View {
             x: center.x + radii.width * cos(angle.radians),
             y: center.y + radii.height * depth
         )
+        .rotated(around: center, by: .degrees(ringTilt))
         let normalizedDepth = (depth + 1) / 2
         let scale = 0.5 + 0.5 * normalizedDepth
         let isFocused = entry.isFocused
@@ -208,9 +210,9 @@ struct JourneyOrbitView: View {
         return JourneyOrbitNode(
             offer: entry.offer,
             isFocused: isFocused,
-            // Only the focused operator is named. With every offer riding the ring,
-            // labels on neighbours would collide into an unreadable band of text.
-            showsLabel: isFocused,
+            // Every rider is named — with only six stops on the ring the labels
+            // stay readable, and they match the reference layout.
+            showsLabel: true,
             action: { onNodeTap(entry.offer.id) }
         )
         .scaleEffect(scale)
@@ -278,9 +280,27 @@ struct JourneyOrbitView: View {
         }
     }
 
-    private var backNodes: [OrbitNode] { allNodes.filter { depth(of: $0) < 0 } }
+    private var backNodes: [OrbitNode] { visibleNodes.filter { depth(of: $0) < 0 } }
 
-    private var frontNodes: [OrbitNode] { allNodes.filter { depth(of: $0) >= 0 } }
+    private var frontNodes: [OrbitNode] { visibleNodes.filter { depth(of: $0) >= 0 } }
+
+    /// The six operators closest to the front of the ring. As the orbit turns, a
+    /// stop slips off the far edge and the next one slips in behind the die, so
+    /// the ring always carries exactly six stops without any popping up front.
+    private var visibleNodes: [OrbitNode] {
+        let count = offers.count
+        guard count > 0 else { return [] }
+        return allNodes
+            .map { entry -> (OrbitNode, Double) in
+                let raw = (Double(entry.index) - phase) * spread
+                let wrapped = raw.truncatingRemainder(dividingBy: 360)
+                let normalized = wrapped < 0 ? wrapped + 360 : wrapped
+                return (entry, min(normalized, 360 - normalized))
+            }
+            .sorted { $0.1 < $1.1 }
+            .prefix(6)
+            .map { $0.0 }
+    }
 
     /// -1 at the back of the orbit, +1 at the front.
     private func depth(of entry: OrbitNode) -> Double {
@@ -303,8 +323,8 @@ private struct JourneyOrbitNode: View {
             action()
         }) {
             VStack(spacing: 6) {
-                if isFocused {
-                    Text("Selected")
+                if offer.state == .next {
+                    Text("Next")
                         .font(.system(size: 9, weight: .bold))
                         .textCase(.uppercase)
                         .kerning(1)
@@ -443,6 +463,23 @@ private struct JourneyOrbitNode: View {
         case .next, .ready, .future:
             EmptyView()
         }
+    }
+}
+
+// MARK: - Geometry helper
+
+private extension CGPoint {
+    /// Rotates the point around `origin`, matching `rotationEffect` so orbit
+    /// nodes ride the same tilted plane as the ring stroke.
+    func rotated(around origin: CGPoint, by angle: Angle) -> CGPoint {
+        let dx = x - origin.x
+        let dy = y - origin.y
+        let cosA = cos(angle.radians)
+        let sinA = sin(angle.radians)
+        return CGPoint(
+            x: origin.x + dx * cosA - dy * sinA,
+            y: origin.y + dx * sinA + dy * cosA
+        )
     }
 }
 

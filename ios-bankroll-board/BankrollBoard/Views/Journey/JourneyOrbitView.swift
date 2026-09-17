@@ -5,9 +5,9 @@
 
 import SwiftUI
 
-/// The spatial offer selector: a gold orbit that sweeps with the user's swipe,
-/// operator nodes riding the ring, and a 3D die tumbling at the center.
-struct JourneyOrbitView: View {
+/// Legacy continuous-ring selector, superseded by the five-slot `JourneyOrbitView`
+/// in `JourneyHeroOrbitView.swift`. Kept so the original Journey screen still builds.
+struct JourneyRingOrbitView: View {
     let offers: [JourneyOffer]
     let phase: Double
     let focusIndex: Int

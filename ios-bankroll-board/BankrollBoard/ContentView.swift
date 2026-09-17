@@ -11,7 +11,7 @@ struct ContentView: View {
 
     var body: some View {
         if hasFinishedOnboarding {
-            JourneyView()
+            JourneyHeroScreen()
         } else {
             OnboardingFlowView()
         }

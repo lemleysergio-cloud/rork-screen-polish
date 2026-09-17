@@ -25,7 +25,7 @@ struct JourneyView: View {
                     // Clears the status bar clock, Dynamic Island, and battery icons.
                     .padding(.top, 38)
 
-                    JourneyOrbitView(
+                    JourneyRingOrbitView(
                         offers: model.offers,
                         phase: model.orbitPhase,
                         focusIndex: model.focusIndex,

@@ -56,16 +56,8 @@ enum BBTheme {
     }
 }
 
-extension Color {
-    /// Creates a color from a 24-bit RGB value, e.g. `0xD9C27A`.
-    init(rgb value: UInt32) {
-        self.init(
-            red: Double((value >> 16) & 0xFF) / 255,
-            green: Double((value >> 8) & 0xFF) / 255,
-            blue: Double(value & 0xFF) / 255
-        )
-    }
-}
+// `Color(rgb:opacity:)` lives in `JourneyHeroModels.swift` so there is a single
+// hex initializer across the app.
 
 extension View {
     /// Applies the branded canvas gradient behind a screen.

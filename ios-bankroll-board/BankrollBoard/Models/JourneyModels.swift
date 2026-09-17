@@ -27,7 +27,7 @@ nonisolated enum JourneyOfferState: String, Sendable, Hashable {
     /// Compact all-caps label used on orbit nodes.
     var nodeLabel: String {
         switch self {
-        case .completed: "Done"
+        case .completed: "Completed"
         case .current: "You are here"
         case .next: "Next"
         case .ready: "Ready"
@@ -77,6 +77,12 @@ nonisolated struct JourneyOffer: Identifiable, Sendable, Hashable {
 
     var isActiveProgress: Bool {
         state == .current || state == .completed
+    }
+
+    /// Offers the player has not unlocked yet are veiled on the orbit, so the ring
+    /// guides them one stop at a time.
+    var isLockedOnOrbit: Bool {
+        state == .future || state == .ready
     }
 }
 

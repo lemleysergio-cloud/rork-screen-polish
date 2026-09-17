@@ -96,8 +96,9 @@ struct JourneyOrbitView: View {
             .allowsHitTesting(false)
     }
 
-    /// Half of the orbit. The bright tracer arc is anchored to `phase`, so the
-    /// gold light travels around the ring exactly as the user swipes.
+    /// Half of the orbit, rendered like a planetary ring: a soft outer halo, a
+    /// solid gold band, and a bright inner filament, with the front half heavier
+    /// than the back so the band reads as a flat disc tilted in space.
     private func ring(center: CGPoint, radii: CGSize, isFront: Bool) -> some View {
         let rect = CGRect(
             x: center.x - radii.width,
@@ -106,18 +107,39 @@ struct JourneyOrbitView: View {
             height: radii.height * 2
         )
         let sweepStart = sweepAnchor
-        return ZStack {
-            OrbitArc(rect: rect, isFront: isFront)
-                .stroke(BBTheme.canvasDeep.opacity(0.65), style: .init(lineWidth: 5, lineCap: .round))
-                .blur(radius: 5)
-                .offset(y: 3)
+        let weight: Double = isFront ? 1 : 0.52
 
+        return ZStack {
+            // Wide, very soft halo: the light the ring casts into the canvas.
+            OrbitArc(rect: rect, isFront: isFront)
+                .stroke(
+                    BBTheme.gold.opacity(0.26 * weight),
+                    style: .init(lineWidth: 16, lineCap: .round)
+                )
+                .blur(radius: 16)
+
+            // Mid bloom, tighter and brighter.
+            OrbitArc(rect: rect, isFront: isFront)
+                .stroke(
+                    BBTheme.gold.opacity(0.4 * weight),
+                    style: .init(lineWidth: 7, lineCap: .round)
+                )
+                .blur(radius: 6)
+
+            // The band itself.
             OrbitArc(rect: rect, isFront: isFront)
                 .stroke(
                     BBTheme.goldSweep,
-                    style: .init(lineWidth: isFront ? 2.4 : 1.5, lineCap: .round)
+                    style: .init(lineWidth: isFront ? 3.4 : 2, lineCap: .round)
                 )
-                .opacity(isFront ? 0.95 : 0.5)
+                .opacity(isFront ? 0.98 : 0.55)
+
+            // Hot filament down the middle of the band gives it its metallic edge.
+            OrbitArc(rect: rect, isFront: isFront)
+                .stroke(
+                    BBTheme.goldBright.opacity(isFront ? 0.85 : 0.35),
+                    style: .init(lineWidth: isFront ? 1.1 : 0.7, lineCap: .round)
+                )
 
             // Traveling highlight: sits under the focused node and follows the swipe.
             OrbitArc(rect: rect, isFront: isFront)
@@ -128,11 +150,11 @@ struct JourneyOrbitView: View {
                         startPoint: .leading,
                         endPoint: .trailing
                     ),
-                    style: .init(lineWidth: isFront ? 4.2 : 2.6, lineCap: .round)
+                    style: .init(lineWidth: isFront ? 5 : 3, lineCap: .round)
                 )
                 .opacity(isFront ? 1 : 0.4)
                 .blur(radius: isFront ? 1.5 : 2.5)
-                .shadow(color: BBTheme.gold.opacity(0.7), radius: 9)
+                .shadow(color: BBTheme.gold.opacity(0.75), radius: 11)
         }
         .rotationEffect(.degrees(ringTilt), anchor: .center)
         .allowsHitTesting(false)
@@ -303,19 +325,27 @@ private struct JourneyOrbitNode: View {
                             )
                         )
                         .overlay {
-                            Circle().stroke(
-                                isFocused ? BBTheme.gold : BBTheme.hairline.opacity(0.7),
-                                lineWidth: isFocused ? 2.4 : 1
-                            )
-                        }
-                        .overlay {
                             Text(offer.mark.monogram)
                                 .font(.system(size: 13, weight: .heavy, design: .rounded))
                                 .minimumScaleFactor(0.6)
                                 .foregroundStyle(Color(rgb: offer.mark.ink))
                                 .padding(6)
                         }
-                        .shadow(color: BBTheme.canvasDeep.opacity(0.6), radius: 8, y: 4)
+                        // Locked stops get a frosted veil drawn over the logo, so the
+                        // eye is pulled to the stop the player can actually play next.
+                        .overlay { if isLocked { lockVeil } }
+                        .clipShape(Circle())
+                        .overlay {
+                            Circle().stroke(
+                                isFocused ? BBTheme.gold : BBTheme.hairline.opacity(isLocked ? 0.35 : 0.7),
+                                lineWidth: isFocused ? 2.4 : 1
+                            )
+                        }
+                        .shadow(
+                            color: BBTheme.canvasDeep.opacity(isLocked ? 0.3 : 0.6),
+                            radius: 8,
+                            y: 4
+                        )
 
                     if isFocused {
                         Circle()
@@ -324,7 +354,7 @@ private struct JourneyOrbitNode: View {
                     }
                 }
                 .frame(width: 62, height: 62)
-                .overlay(alignment: .topLeading) { rankBadge }
+                .overlay(alignment: .topLeading) { if !isLocked { rankBadge } }
                 .overlay(alignment: .bottomTrailing) { stateDot }
 
                 VStack(spacing: 1) {
@@ -337,7 +367,7 @@ private struct JourneyOrbitNode: View {
                         .font(.system(size: 9, weight: .bold))
                         .textCase(.uppercase)
                         .kerning(0.9)
-                        .foregroundStyle(isFocused ? BBTheme.gold : BBTheme.inkMuted.opacity(0.7))
+                        .foregroundStyle(stateTint)
                 }
                 .frame(width: 104)
                 .opacity(showsLabel ? 1 : 0)
@@ -348,6 +378,36 @@ private struct JourneyOrbitNode: View {
         .animation(.spring(response: 0.34, dampingFraction: 0.78), value: isFocused)
         .accessibilityLabel("\(offer.rankLabel): \(offer.name), \(offer.state.trailLabel)")
         .accessibilityAddTraits(isFocused ? [.isSelected] : [])
+    }
+
+    private var isLocked: Bool { offer.isLockedOnOrbit && !isFocused }
+
+    /// Frosted wrap over a not-yet-available logo: a canvas-toned gradient that
+    /// thins toward the top, plus a small lock or trophy glyph.
+    private var lockVeil: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    BBTheme.canvas.opacity(0.74),
+                    BBTheme.canvasDeep.opacity(0.92)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            Image(systemName: offer.state == .ready ? "trophy" : "lock.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+        }
+    }
+
+    private var stateTint: Color {
+        if isFocused { return BBTheme.gold }
+        switch offer.state {
+        case .completed: return BBTheme.positive.opacity(0.85)
+        case .next: return BBTheme.gold.opacity(0.85)
+        case .current, .ready, .future: return BBTheme.inkMuted.opacity(0.7)
+        }
     }
 
     private var rankBadge: some View {

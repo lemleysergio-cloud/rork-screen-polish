@@ -29,24 +29,39 @@ struct JourneyOrbitView: View {
     var body: some View {
         VStack(spacing: 0) {
             orbitCanvas
-
-            // Caption sits under the ring so it never collides with the NEXT pill
-            // or the casino name labels on the lower stops.
-            VStack(spacing: 4) {
-                HStack(spacing: 6) {
-                    Text("←").foregroundColor(JourneyPalette.gold)
-                    Text("Swipe to explore")
-                    Text("→").foregroundColor(JourneyPalette.gold)
-                }
-                .font(.system(size: 10, weight: .bold))
-
-                Text("Best-offer rank · #1 first")
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .foregroundColor(JourneyPalette.muted)
-            .padding(.top, 12)
+            caption
+        }
+        // The gold fade spans the ring and the caption together, so the caption
+        // reads as part of the glow instead of sitting outside it.
+        .background(alignment: .bottom) {
+            RadialGradient(
+                colors: [JourneyPalette.gold.opacity(0.13), JourneyPalette.gold.opacity(0.05), .clear],
+                center: UnitPoint(x: 0.50, y: 0.62),
+                startRadius: 5,
+                endRadius: 250
+            )
             .allowsHitTesting(false)
         }
+    }
+
+    /// Tucked just under the NEXT pill, inside the hero's gold fade.
+    private var caption: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 6) {
+                Text("←").foregroundColor(JourneyPalette.gold)
+                Text("Swipe to explore")
+                Text("→").foregroundColor(JourneyPalette.gold)
+            }
+            .font(.system(size: 10, weight: .bold))
+
+            Text("Best-offer rank · #1 first")
+                .font(.system(size: 10, weight: .medium))
+        }
+        .foregroundColor(JourneyPalette.muted)
+        // Negative inset closes the empty gap under the NEXT pill.
+        .padding(.top, -20)
+        .padding(.bottom, 4)
+        .allowsHitTesting(false)
     }
 
     private var orbitCanvas: some View {
@@ -117,12 +132,6 @@ struct JourneyOrbitView: View {
                 center: UnitPoint(x: 0.50, y: 0.45),
                 startRadius: 4,
                 endRadius: 145
-            )
-            RadialGradient(
-                colors: [JourneyPalette.gold.opacity(0.11), .clear],
-                center: UnitPoint(x: 0.50, y: 0.70),
-                startRadius: 5,
-                endRadius: 230
             )
         }
         .allowsHitTesting(false)

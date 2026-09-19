@@ -16,7 +16,6 @@ struct JourneyHeroScreen: View {
     )
     /// Drives the sections below the hero: stamps, offer trail, and help links.
     @State private var trail = JourneyViewModel()
-    @State private var selectedTab: BBTab = .journey
     @State private var showingStatePicker = false
     @State private var selectedCasino: JourneyCasino?
 
@@ -72,9 +71,6 @@ struct JourneyHeroScreen: View {
             }
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("journey.page")
-
-            BBTabBar(selection: $selectedTab)
-                .padding(.bottom, 6)
         }
         .onChange(of: viewModel.selectedState) { _, newValue in
             trail.selectRegion(newValue.rawValue)

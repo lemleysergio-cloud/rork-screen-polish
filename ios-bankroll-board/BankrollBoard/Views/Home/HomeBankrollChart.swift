@@ -17,6 +17,9 @@ struct HomeBankrollChart: View {
     var height: CGFloat = 206
     /// Width reserved for the value axis gutter.
     private let gutter: CGFloat = 52
+    /// Breathing room so the top and bottom gridlines — and their labels —
+    /// land fully inside the chart frame instead of half outside it.
+    private let verticalInset: CGFloat = 9
 
     private var values: [Double] { points.map { Double($0.cents) } }
 
@@ -92,7 +95,7 @@ struct HomeBankrollChart: View {
             .frame(height: height)
 
             axisDates
-                .padding(.leading, gutter)
+                .frame(height: 13)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Bankroll over time, \(timeframe.long)")
@@ -107,10 +110,11 @@ struct HomeBankrollChart: View {
     }
 
     private func y(for value: Double, height: CGFloat) -> CGFloat {
+        let usable = max(height - verticalInset * 2, 1)
         let span = upperBound - lowerBound
         guard span > 0 else { return height / 2 }
         let ratio = (value - lowerBound) / span
-        return height - CGFloat(ratio) * height
+        return verticalInset + usable - CGFloat(ratio) * usable
     }
 
     /// Touch x within the plot, as a 0...1 fraction of the window.
@@ -186,42 +190,70 @@ struct HomeBankrollChart: View {
 
     // MARK: - Grid
 
+    /// Gridlines and their value labels.
+    ///
+    /// Each element is positioned against an explicitly sized container: the
+    /// line occupies the plot area to the right of the gutter, the label the
+    /// gutter itself. Positioning them independently keeps the two from
+    /// dragging each other sideways.
     private func gridAndLabels(plotWidth: CGFloat, plotHeight: CGFloat) -> some View {
-        ForEach(Array(ticks.enumerated()), id: \.offset) { _, tick in
-            let position = y(for: tick, height: plotHeight)
-            ZStack(alignment: .leading) {
+        let labelWidth = gutter - 10
+
+        return ZStack(alignment: .topLeading) {
+            ForEach(Array(ticks.enumerated()), id: \.offset) { _, tick in
+                let position = y(for: tick, height: plotHeight)
+
                 Rectangle()
                     .fill(Color.white.opacity(0.07))
                     .frame(width: plotWidth, height: 1)
-                    .offset(x: gutter)
+                    .position(x: gutter + plotWidth / 2, y: position)
 
                 Text(homeAxisLabel(cents: tick, step: axisStep))
                     .font(.system(size: 10))
                     .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .frame(width: gutter - 8, alignment: .trailing)
+                    .frame(width: labelWidth, alignment: .trailing)
+                    .position(x: labelWidth / 2, y: position)
             }
-            .position(x: plotWidth / 2 + gutter / 2, y: position)
+        }
+        .frame(width: gutter + plotWidth, height: plotHeight, alignment: .topLeading)
+    }
+
+    /// Date labels centred under the samples they describe.
+    ///
+    /// A spacer-based row pinned the first label's left edge and the last
+    /// label's right edge to the plot bounds, which reads as a sideways shift
+    /// against the line. Each label is now centred on its own sample's x
+    /// position and clamped to stay inside the frame.
+    private var axisDates: some View {
+        GeometryReader { geo in
+            let plotWidth = max(geo.size.width - gutter, 1)
+
+            ZStack(alignment: .topLeading) {
+                ForEach(dateLabelIndices, id: \.self) { index in
+                    if points.indices.contains(index) {
+                        let centre = gutter + x(for: index, width: plotWidth)
+
+                        Text(homeAxisDateLabel(points[index].date, timeframe: timeframe))
+                            .font(.system(size: 10))
+                            .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+                            .fixedSize()
+                            .position(
+                                x: min(max(centre, 22), geo.size.width - 22),
+                                y: 6
+                            )
+                    }
+                }
+            }
         }
     }
 
-    private var axisDates: some View {
-        HStack {
-            if let first = points.first {
-                Text(homeAxisDateLabel(first.date, timeframe: timeframe))
-            }
-            Spacer(minLength: 0)
-            if points.count > 2 {
-                Text(homeAxisDateLabel(points[points.count / 2].date, timeframe: timeframe))
-                Spacer(minLength: 0)
-            }
-            if let last = points.last {
-                Text(homeAxisDateLabel(last.date, timeframe: timeframe))
-            }
-        }
-        .font(.system(size: 10))
-        .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+    /// Sample indices the date labels mark: first, middle, last.
+    private var dateLabelIndices: [Int] {
+        guard points.count > 1 else { return points.isEmpty ? [] : [0] }
+        guard points.count > 2 else { return [0, points.count - 1] }
+        return [0, (points.count - 1) / 2, points.count - 1]
     }
 
     // MARK: - Scrub overlay

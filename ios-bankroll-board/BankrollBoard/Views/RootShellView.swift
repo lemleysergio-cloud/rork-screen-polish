@@ -15,11 +15,7 @@ struct RootShellView: View {
             Group {
                 switch selectedTab {
                 case .home:
-                    BBPlaceholderScreen(
-                        eyebrow: "HOME",
-                        title: "Home",
-                        message: "Your daily snapshot lands here: active offers, this week's cash flow, and what to do next."
-                    )
+                    HomeScreen()
                 case .stats:
                     BBPlaceholderScreen(
                         eyebrow: "STATS",

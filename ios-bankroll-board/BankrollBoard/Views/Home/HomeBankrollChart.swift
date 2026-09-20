@@ -15,8 +15,14 @@ struct HomeBankrollChart: View {
     let scrubProgress: Double?
     let onScrub: (Double?) -> Void
     var height: CGFloat = 206
+    /// Grow to fill the offered height instead of sitting at a fixed size.
+    /// The full-screen view uses this so the plot doesn't strand empty space.
+    var expands: Bool = false
     /// Width reserved for the value axis gutter.
     private let gutter: CGFloat = 52
+    /// Keeps the first and last samples off the plot edges so the endpoint dot
+    /// and the opening of the line are never sliced by the frame.
+    private let horizontalInset: CGFloat = 8
     /// Breathing room so the top and bottom gridlines — and their labels —
     /// land fully inside the chart frame instead of half outside it.
     private let verticalInset: CGFloat = 9
@@ -92,7 +98,8 @@ struct HomeBankrollChart: View {
                     .offset(x: gutter)
                 }
             }
-            .frame(height: height)
+            .frame(height: expands ? nil : height)
+            .frame(maxHeight: expands ? .infinity : nil)
 
             axisDates
                 .frame(height: 13)
@@ -105,8 +112,16 @@ struct HomeBankrollChart: View {
     // MARK: - Geometry
 
     private func x(for index: Int, width: CGFloat) -> CGFloat {
-        guard points.count > 1 else { return 0 }
-        return width * CGFloat(index) / CGFloat(points.count - 1)
+        guard points.count > 1 else { return plotX(progress: 0, width: width) }
+        return plotX(progress: Double(index) / Double(points.count - 1), width: width)
+    }
+
+    /// Maps a 0...1 position onto the inset plot area. Every horizontal
+    /// placement goes through here so the line, dots, and touch handling
+    /// all agree on where a given fraction sits.
+    private func plotX(progress: Double, width: CGFloat) -> CGFloat {
+        let usable = max(width - horizontalInset * 2, 1)
+        return horizontalInset + usable * CGFloat(progress)
     }
 
     private func y(for value: Double, height: CGFloat) -> CGFloat {
@@ -122,8 +137,8 @@ struct HomeBankrollChart: View {
     /// Reported continuously rather than rounded to a sample, so the crosshair
     /// tracks the finger exactly instead of snapping between data points.
     private func progress(forX position: CGFloat, width: CGFloat) -> Double {
-        guard width > 0 else { return 0 }
-        return Double(min(max(position / width, 0), 1))
+        let usable = max(width - horizontalInset * 2, 1)
+        return Double(min(max((position - horizontalInset) / usable, 0), 1))
     }
 
     private func linePath(width: CGFloat, height: CGFloat) -> Path {
@@ -145,9 +160,10 @@ struct HomeBankrollChart: View {
     private func areaFill(width: CGFloat, height: CGFloat) -> some View {
         Path { path in
             guard let first = points.first else { return }
-            path.move(to: CGPoint(x: 0, y: height))
+            let leading = plotX(progress: 0, width: width)
+            path.move(to: CGPoint(x: leading, y: height))
             path.addLine(
-                to: CGPoint(x: 0, y: y(for: Double(first.cents), height: height))
+                to: CGPoint(x: leading, y: y(for: Double(first.cents), height: height))
             )
             for (index, point) in points.enumerated() {
                 path.addLine(
@@ -157,7 +173,7 @@ struct HomeBankrollChart: View {
                     )
                 )
             }
-            path.addLine(to: CGPoint(x: width, y: height))
+            path.addLine(to: CGPoint(x: plotX(progress: 1, width: width), y: height))
             path.closeSubpath()
         }
         .fill(
@@ -266,7 +282,7 @@ struct HomeBankrollChart: View {
     ) -> some View {
         // Both the line and the dot come from the same fraction, so the marker
         // sits precisely where the finger is on the plotted curve.
-        let positionX = width * CGFloat(progress)
+        let positionX = plotX(progress: progress, width: width)
         let positionY = y(for: Double(point.cents), height: height)
 
         return ZStack(alignment: .topLeading) {

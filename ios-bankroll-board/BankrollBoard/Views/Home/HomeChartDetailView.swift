@@ -46,17 +46,18 @@ struct HomeChartDetailView: View {
                     .padding(.horizontal, BBTheme.screenMargin)
                     .padding(.top, 20)
 
+                // Fills the space between the header and the timeframe bar,
+                // which is the whole point of going full screen.
                 HomeBankrollChart(
                     points: model.series,
                     timeframe: model.timeframe,
                     scrubProgress: model.scrubProgress,
                     onScrub: { model.scrub(to: $0) },
-                    height: 360
+                    expands: true
                 )
                 .padding(.horizontal, BBTheme.screenMargin)
                 .padding(.top, 22)
-
-                Spacer(minLength: 12)
+                .padding(.bottom, 24)
 
                 HomeTimeframeBar(
                     selection: model.timeframe,

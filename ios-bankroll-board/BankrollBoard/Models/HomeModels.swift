@@ -413,23 +413,23 @@ nonisolated enum HomeSeed {
 
 // MARK: - Scrub sampling
 
-/// Point on the plotted line at `progress` (0...1) across the window.
-///
-/// Interpolates between samples instead of snapping to the nearest one, so the
-/// crosshair and readout sit exactly where the finger is rather than jumping
-/// between data points.
-nonisolated func homeInterpolatedPoint(_ points: [BankrollPoint], at progress: Double) -> BankrollPoint? {
-    guard points.count > 1 else { return points.first }
+/// Index of the recorded sample nearest `progress` (0...1) across the window.
+nonisolated func homeNearestSampleIndex(_ points: [BankrollPoint], at progress: Double) -> Int? {
+    guard !points.isEmpty else { return nil }
+    guard points.count > 1 else { return 0 }
     let clamped = Swift.min(Swift.max(progress, 0), 1)
-    let position = clamped * Double(points.count - 1)
-    let lower = Int(position.rounded(.down))
-    let upper = Swift.min(lower + 1, points.count - 1)
-    let fraction = position - Double(lower)
-    let start = points[lower]
-    let end = points[upper]
-    let cents = Double(start.cents) + (Double(end.cents) - Double(start.cents)) * fraction
-    let date = start.date.addingTimeInterval(end.date.timeIntervalSince(start.date) * fraction)
-    return BankrollPoint(id: lower, date: date, cents: Int(cents.rounded()))
+    return Int((clamped * Double(points.count - 1)).rounded())
+}
+
+/// The recorded balance nearest `progress` across the window.
+///
+/// Scrubbing reports real samples only. Interpolating between two balances
+/// would surface figures the bankroll never actually held — a $1,100 reading
+/// between a $1,000 and a $2,000 balance — so the marker snaps to the sample
+/// itself, which also keeps it sitting on a true vertex of the plotted line.
+nonisolated func homeSampledPoint(_ points: [BankrollPoint], at progress: Double) -> BankrollPoint? {
+    guard let index = homeNearestSampleIndex(points, at: progress) else { return nil }
+    return points[index]
 }
 
 // MARK: - Formatting

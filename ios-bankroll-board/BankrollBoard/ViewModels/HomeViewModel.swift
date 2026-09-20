@@ -301,10 +301,11 @@ final class HomeViewModel {
 
     // MARK: - Scrubbing
 
-    /// The point on the line directly under the user's finger.
+    /// The recorded balance nearest the user's finger — always a real sample,
+    /// never a value interpolated between two balances.
     var scrubPoint: BankrollPoint? {
         guard let progress = scrubProgress else { return nil }
-        return homeInterpolatedPoint(series, at: progress)
+        return homeSampledPoint(series, at: progress)
     }
 
     var isScrubbing: Bool { scrubPoint != nil }
@@ -327,9 +328,9 @@ final class HomeViewModel {
         let clamped = min(max(progress, 0), 1)
         scrubProgress = clamped
 
-        // One tick per data point crossed, rather than a buzz on every pixel.
-        guard series.count > 1 else { return }
-        let index = Int((clamped * Double(series.count - 1)).rounded())
+        // One tick each time the marker lands on a different sample, rather
+        // than a buzz on every pixel of movement.
+        guard let index = homeNearestSampleIndex(series, at: clamped) else { return }
         if index != lastHapticIndex {
             lastHapticIndex = index
             Haptics.selection()

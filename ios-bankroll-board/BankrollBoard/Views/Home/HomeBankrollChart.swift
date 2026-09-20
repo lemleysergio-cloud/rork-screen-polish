@@ -74,10 +74,10 @@ struct HomeBankrollChart: View {
                             .offset(x: gutter)
 
                         if let progress = scrubProgress,
-                           let point = homeInterpolatedPoint(points, at: progress) {
+                           let index = homeNearestSampleIndex(points, at: progress) {
                             scrubOverlay(
-                                progress: progress,
-                                point: point,
+                                index: index,
+                                point: points[index],
                                 width: plotWidth,
                                 height: plotHeight
                             )
@@ -275,14 +275,15 @@ struct HomeBankrollChart: View {
     // MARK: - Scrub overlay
 
     private func scrubOverlay(
-        progress: Double,
+        index: Int,
         point: BankrollPoint,
         width: CGFloat,
         height: CGFloat
     ) -> some View {
-        // Both the line and the dot come from the same fraction, so the marker
-        // sits precisely where the finger is on the plotted curve.
-        let positionX = plotX(progress: progress, width: width)
+        // Anchored to the sample itself, so the crosshair, the dot, and the
+        // amount in the callout all describe the same real reading — and the
+        // dot always lands on a vertex of the line rather than floating beside it.
+        let positionX = x(for: index, width: width)
         let positionY = y(for: Double(point.cents), height: height)
 
         return ZStack(alignment: .topLeading) {

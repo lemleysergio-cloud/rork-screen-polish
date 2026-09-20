@@ -22,9 +22,36 @@ struct HomeScreen: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    HomeSyncBar(
+                        caption: model.lastSyncedCaption,
+                        isSyncing: model.syncStatus.isSyncing,
+                        onRefresh: { Task { await model.sync(trigger: .manual) } }
+                    )
+                    .padding(.horizontal, BBTheme.screenMargin)
+                    .padding(.top, 4)
+
+                    HomeSyncBanner(
+                        phase: model.syncStatus.phase,
+                        onRetry: { Task { await model.sync(trigger: .manual) } },
+                        onDismiss: { model.dismissSyncBanner() }
+                    )
+                    .padding(.horizontal, BBTheme.screenMargin)
+                    .padding(.top, 8)
+
+                    if !model.accountsNeedingAttention.isEmpty {
+                        HomeReconnectCard(
+                            accounts: model.accountsNeedingAttention,
+                            onReconnect: { account in
+                                Task { await model.reconnect(account) }
+                            }
+                        )
+                        .padding(.horizontal, BBTheme.screenMargin)
+                        .padding(.top, 12)
+                    }
+
                     hero
                         .padding(.horizontal, BBTheme.screenMargin)
-                        .padding(.top, 8)
+                        .padding(.top, 14)
 
                     if model.hasPending {
                         pendingCard
@@ -44,12 +71,27 @@ struct HomeScreen: View {
                 }
                 // Clears the floating tab bar so the last row is never hidden.
                 .padding(.bottom, 132)
+                .animation(.easeInOut(duration: 0.25), value: model.syncStatus.phase)
+                .animation(.easeInOut(duration: 0.25), value: model.settledCents)
             }
             .scrollIndicators(.hidden)
+            .refreshable {
+                await model.sync(trigger: .pullToRefresh)
+            }
             .accessibilityIdentifier("home.page")
+            .redacted(reason: model.isLoading ? .placeholder : [])
+        }
+        .task {
+            await model.onAppear()
         }
         .fullScreenCover(isPresented: $model.showingChartDetail) {
             HomeChartDetailView(model: model)
+        }
+        .sheet(item: $model.pendingReauth) { request in
+            HomeReauthSheet(
+                request: request,
+                onFinished: { Task { await model.completeReauth() } }
+            )
         }
     }
 

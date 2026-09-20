@@ -2,7 +2,11 @@
 //  HomeViewModel.swift
 //  BankrollBoard
 //
-//  Drives the Home screen: bankroll totals, chart series, and grouped activity.
+//  Drives the Home screen: bankroll totals, chart series, grouped activity, and
+//  the Plaid refresh lifecycle.
+//
+//  All data arrives through `HomeDataSource`, so connecting the real backend is
+//  a matter of injecting a different implementation — see HomeDataSource.swift.
 //
 
 import Foundation
@@ -26,25 +30,173 @@ final class HomeViewModel {
     var scrubIndex: Int?
 
     private(set) var series: [BankrollPoint] = []
-    private(set) var transfers: [HomeTransfer] = []
+    private(set) var snapshot: HomeSnapshot = .empty
+    private(set) var syncStatus: HomeSyncStatus = .idle
+    /// True until the first snapshot lands, so Home can show skeletons.
+    private(set) var isLoading = true
 
+    /// Link token awaiting presentation after the user taps Reconnect.
+    var pendingReauth: ReauthRequest?
+
+    nonisolated struct ReauthRequest: Identifiable, Equatable, Sendable {
+        let id: String
+        let institutionName: String
+        let linkToken: String
+    }
+
+    private let dataSource: HomeDataSource
     private let now: Date
+    private var syncTask: Task<Void, Never>?
 
-    init(now: Date = Date()) {
+    init(dataSource: HomeDataSource = SeedHomeDataSource(), now: Date = Date()) {
+        self.dataSource = dataSource
         self.now = now
-        self.transfers = HomeSeed.transfers(now: now)
         rebuildSeries()
+    }
+
+    var transfers: [HomeTransfer] { snapshot.transfers }
+
+    // MARK: - Loading & syncing
+
+    /// First load: serve whatever is cached, then quietly refresh behind it.
+    func onAppear() async {
+        guard isLoading else { return }
+        do {
+            let loaded = try await dataSource.loadSnapshot()
+            apply(loaded)
+            syncStatus.lastSyncedAt = loaded.generatedAt
+        } catch {
+            recordFailure(error, trigger: .initialLoad)
+        }
+        isLoading = false
+    }
+
+    /// Pull fresh transactions from the bank.
+    ///
+    /// Re-entrant taps are ignored rather than queued — a second `/transactions/sync`
+    /// while one is in flight only duplicates work.
+    func sync(trigger: HomeSyncTrigger = .manual) async {
+        guard !syncStatus.isSyncing else { return }
+
+        if trigger.isUserInitiated {
+            Haptics.tap()
+        }
+        syncStatus.trigger = trigger
+        syncStatus.phase = .syncing
+
+        do {
+            let fresh = try await dataSource.refresh(trigger: trigger)
+            let summary = changeSummary(from: snapshot, to: fresh)
+            apply(fresh)
+            syncStatus.lastSyncedAt = fresh.generatedAt
+            syncStatus.phase = .succeeded(
+                newTransfers: summary.added,
+                newlySettled: summary.settled
+            )
+            if trigger.isUserInitiated {
+                Haptics.success()
+            }
+            await clearBanner(after: .seconds(3))
+        } catch {
+            recordFailure(error, trigger: trigger)
+            if trigger.isUserInitiated {
+                Haptics.warning()
+            }
+        }
+    }
+
+    /// Dismiss a success or failure banner without touching an in-flight sync.
+    func dismissSyncBanner() {
+        guard !syncStatus.isSyncing else { return }
+        syncStatus.phase = .idle
+    }
+
+    /// Opens Plaid Link in update mode for a connection that needs repair.
+    func reconnect(_ account: LinkedAccount) async {
+        Haptics.tap()
+        do {
+            let token = try await dataSource.reauthToken(for: account.id)
+            pendingReauth = ReauthRequest(
+                id: account.id,
+                institutionName: account.institutionName,
+                linkToken: token
+            )
+        } catch {
+            syncStatus.phase = .failed(
+                message: "Couldn't start reconnecting \(account.institutionName).",
+                isRecoverable: true
+            )
+        }
+    }
+
+    /// Called once Plaid Link reports success, to pick up the repaired account.
+    func completeReauth() async {
+        pendingReauth = nil
+        await sync(trigger: .manual)
+    }
+
+    private func apply(_ new: HomeSnapshot) {
+        snapshot = new
+        rebuildSeries()
+    }
+
+    private func recordFailure(_ error: Error, trigger: HomeSyncTrigger) {
+        let dataError = error as? HomeDataError ?? .server("Couldn't reach your bank. Pull to try again.")
+        syncStatus.phase = .failed(
+            message: dataError.errorDescription ?? "Something went wrong.",
+            isRecoverable: dataError.isRecoverable
+        )
+        syncStatus.trigger = trigger
+    }
+
+    /// Counts what a refresh actually changed, so the banner can be specific
+    /// instead of saying "Updated" every time.
+    private func changeSummary(
+        from old: HomeSnapshot,
+        to new: HomeSnapshot
+    ) -> (added: Int, settled: Int) {
+        let oldIds = Set(old.transfers.map(\.id))
+        let added = new.transfers.filter { !oldIds.contains($0.id) }.count
+
+        let oldPending = Set(
+            old.transfers.filter { $0.status == .pending }.map(\.id)
+        )
+        let settled = new.transfers.filter {
+            $0.status == .settled && oldPending.contains($0.id)
+        }.count
+
+        return (added, settled)
+    }
+
+    private func clearBanner(after duration: Duration) async {
+        syncTask?.cancel()
+        let task = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            guard let self, !self.syncStatus.isSyncing else { return }
+            if case .succeeded = self.syncStatus.phase {
+                self.syncStatus.phase = .idle
+            }
+        }
+        syncTask = task
+        await task.value
     }
 
     private func rebuildSeries() {
         scrubIndex = nil
-        series = HomeSeed.series(for: timeframe, now: now)
+        series = HomeSeed.series(
+            for: timeframe,
+            endingAt: snapshot == .empty ? HomeSeed.settledCents : snapshot.settledCents,
+            now: now
+        )
     }
 
     // MARK: - Balances
 
     /// Settled balance only — pending transfers are excluded until the bank clears them.
-    var settledCents: Int { HomeSeed.settledCents }
+    var settledCents: Int {
+        snapshot == .empty ? HomeSeed.settledCents : snapshot.settledCents
+    }
 
     var pendingTransfers: [HomeTransfer] {
         transfers.filter { $0.status == .pending }
@@ -60,7 +212,11 @@ final class HomeViewModel {
     /// Balance projected forward, assuming all pending transfers settle as reported.
     var projectedCents: Int { settledCents + pendingNetCents }
 
-    var periodDeltaCents: Int { HomeSeed.periodDeltaCents(for: timeframe) }
+    var periodDeltaCents: Int {
+        snapshot == .empty
+            ? HomeSeed.periodDeltaCents(for: timeframe)
+            : snapshot.delta(for: timeframe)
+    }
 
     var periodStartCents: Int { settledCents - periodDeltaCents }
 
@@ -73,6 +229,16 @@ final class HomeViewModel {
         pendingTransfers.sorted {
             ($0.expectedDate ?? .distantFuture) < ($1.expectedDate ?? .distantFuture)
         }
+    }
+
+    // MARK: - Accounts
+
+    var linkedAccounts: [LinkedAccount] { snapshot.accounts }
+
+    var accountsNeedingAttention: [LinkedAccount] { snapshot.accountsNeedingAttention }
+
+    var lastSyncedCaption: String {
+        homeRelativeTime(syncStatus.lastSyncedAt, now: Date())
     }
 
     // MARK: - Scrubbing

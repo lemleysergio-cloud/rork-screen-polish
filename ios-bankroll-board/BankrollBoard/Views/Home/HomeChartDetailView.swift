@@ -49,7 +49,7 @@ struct HomeChartDetailView: View {
                 HomeBankrollChart(
                     points: model.series,
                     timeframe: model.timeframe,
-                    scrubIndex: model.scrubIndex,
+                    scrubProgress: model.scrubProgress,
                     onScrub: { model.scrub(to: $0) },
                     height: 360
                 )
@@ -89,7 +89,7 @@ struct HomeChartDetailView: View {
     }
 
     private var balance: some View {
-        let parts = homeBalanceParts(cents: model.settledCents)
+        let parts = homeBalanceParts(cents: model.displayedBalanceCents)
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.dollars)
                 .font(BBTheme.money(42))

@@ -53,8 +53,12 @@ struct HomeScreen: View {
                         .padding(.horizontal, BBTheme.screenMargin)
                         .padding(.top, 14)
 
-                    if model.hasPending {
+                    if model.showsPendingCard {
                         pendingCard
+                            .padding(.horizontal, BBTheme.screenMargin)
+                            .padding(.top, 18)
+                    } else if model.showsPendingCountedRow {
+                        pendingCountedRow
                             .padding(.horizontal, BBTheme.screenMargin)
                             .padding(.top, 18)
                     }
@@ -93,6 +97,9 @@ struct HomeScreen: View {
                 onFinished: { Task { await model.completeReauth() } }
             )
         }
+        .sheet(isPresented: $model.showingPendingReview) {
+            HomePendingReviewView(model: model)
+        }
     }
 
     private var rule: some View {
@@ -130,7 +137,7 @@ struct HomeScreen: View {
     /// The headline holds the settled balance even while scrubbing; the chart's
     /// own callout reports the inspected point, so the anchor never moves.
     private var balanceRow: some View {
-        let parts = homeBalanceParts(cents: model.settledCents)
+        let parts = homeBalanceParts(cents: model.displayedBalanceCents)
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.dollars)
                 .font(BBTheme.money(48))
@@ -143,11 +150,14 @@ struct HomeScreen: View {
         .lineLimit(1)
         .minimumScaleFactor(0.6)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Net bankroll \(homeMoney(cents: model.settledCents, showsPlus: false)), settled")
+        .accessibilityLabel("Net bankroll \(homeMoney(cents: model.displayedBalanceCents, showsPlus: false))")
     }
 
     private var balanceCaption: String {
-        model.hasPending ? "Settled net bankroll · All time" : "Net bankroll · All time"
+        if model.countsPendingInBalance {
+            return "Includes pending · All time"
+        }
+        return model.hasPending ? "Settled net bankroll · All time" : "Net bankroll · All time"
     }
 
     private var deltaRow: some View {
@@ -228,8 +238,7 @@ struct HomeScreen: View {
             }
 
             Button {
-                model.select(filter: .pending)
-                if !model.isActivityExpanded { model.isActivityExpanded = true }
+                model.openPendingReview()
             } label: {
                 HStack(spacing: 5) {
                     Text("Review pending")
@@ -255,6 +264,42 @@ struct HomeScreen: View {
                         .stroke(BBTheme.gold.opacity(0.26), lineWidth: 1)
                 }
         }
+    }
+
+    /// Replaces the amber card once pending money is being counted: states the
+    /// choice plainly and offers the way back, without re-raising a settled question.
+    private var pendingCountedRow: some View {
+        Button {
+            model.openPendingReview()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(BBTheme.positive)
+
+                Text("Counting \(homeMoney(cents: model.pendingNetCents)) in pending")
+                    .font(.system(size: 12))
+                    .foregroundStyle(BBTheme.inkMuted)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+
+                Spacer(minLength: 6)
+
+                Text("Change")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(BBTheme.gold)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .background {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .stroke(BBTheme.hairline.opacity(0.7), lineWidth: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(BBPressStyle())
+        .accessibilityLabel("Pending money is counted in your balance. Tap to review.")
     }
 
     // MARK: - Chart
@@ -298,7 +343,7 @@ struct HomeScreen: View {
             HomeBankrollChart(
                 points: model.series,
                 timeframe: model.timeframe,
-                scrubIndex: model.scrubIndex,
+                scrubProgress: model.scrubProgress,
                 onScrub: { model.scrub(to: $0) }
             )
             .padding(.horizontal, BBTheme.screenMargin)

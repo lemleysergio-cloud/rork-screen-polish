@@ -26,8 +26,17 @@ final class HomeViewModel {
     var activityFilter: HomeActivityFilter = .all
     var isActivityExpanded = false
     var showingChartDetail = false
-    /// Index into `series` while the user is scrubbing the chart.
-    var scrubIndex: Int?
+    var showingPendingReview = false
+
+    /// Horizontal position being inspected, 0...1 across the chart window.
+    ///
+    /// Stored as a fraction rather than a sample index so the crosshair can sit
+    /// exactly under the finger instead of snapping to the nearest data point.
+    var scrubProgress: Double?
+
+    /// When true the user has reviewed pending money and asked for it to be
+    /// counted, so balance and chart show the projected figure instead.
+    private(set) var countsPendingInBalance = false
 
     private(set) var series: [BankrollPoint] = []
     private(set) var snapshot: HomeSnapshot = .empty
@@ -183,10 +192,11 @@ final class HomeViewModel {
     }
 
     private func rebuildSeries() {
-        scrubIndex = nil
+        scrubProgress = nil
+        lastHapticIndex = nil
         series = HomeSeed.series(
             for: timeframe,
-            endingAt: snapshot == .empty ? HomeSeed.settledCents : snapshot.settledCents,
+            endingAt: displayedBalanceCents,
             now: now
         )
     }
@@ -196,6 +206,12 @@ final class HomeViewModel {
     /// Settled balance only — pending transfers are excluded until the bank clears them.
     var settledCents: Int {
         snapshot == .empty ? HomeSeed.settledCents : snapshot.settledCents
+    }
+
+    /// What the hero and the chart's end point actually show, which includes
+    /// pending money once the user has reviewed and accepted it.
+    var displayedBalanceCents: Int {
+        countsPendingInBalance ? projectedCents : settledCents
     }
 
     var pendingTransfers: [HomeTransfer] {
@@ -209,13 +225,23 @@ final class HomeViewModel {
 
     var hasPending: Bool { !pendingTransfers.isEmpty }
 
+    /// The amber "review pending" card only stands while the money is still
+    /// being held out of the balance. Once counted, it's replaced by a quiet
+    /// counted row so the screen stops nagging about a resolved decision.
+    var showsPendingCard: Bool { hasPending && !countsPendingInBalance }
+
+    var showsPendingCountedRow: Bool { hasPending && countsPendingInBalance }
+
     /// Balance projected forward, assuming all pending transfers settle as reported.
     var projectedCents: Int { settledCents + pendingNetCents }
 
     var periodDeltaCents: Int {
-        snapshot == .empty
+        let base = snapshot == .empty
             ? HomeSeed.periodDeltaCents(for: timeframe)
             : snapshot.delta(for: timeframe)
+        // Pending money is recent, so counting it moves the window's change too.
+        // Keeping these in step also anchors the chart's opening value.
+        return countsPendingInBalance ? base + pendingNetCents : base
     }
 
     var periodStartCents: Int { settledCents - periodDeltaCents }
@@ -241,11 +267,44 @@ final class HomeViewModel {
         homeRelativeTime(syncStatus.lastSyncedAt, now: Date())
     }
 
+    // MARK: - Pending review
+
+    /// Total still in flight, shown as the headline figure on the review screen.
+    var pendingInflowCents: Int {
+        pendingTransfers.filter { $0.cents > 0 }.reduce(0) { $0 + $1.cents }
+    }
+
+    var pendingOutflowCents: Int {
+        pendingTransfers.filter { $0.cents < 0 }.reduce(0) { $0 + $1.cents }
+    }
+
+    /// The soonest date the bank expects to finish settling everything pending.
+    var lastExpectedSettlement: Date? {
+        pendingTransfers.compactMap(\.expectedDate).max()
+    }
+
+    func openPendingReview() {
+        Haptics.tap()
+        showingPendingReview = true
+    }
+
+    /// Fold pending money into the displayed balance (or take it back out).
+    ///
+    /// This is a presentation choice, not a claim that the bank has settled:
+    /// the transfers keep their pending state and still appear in activity.
+    func setPendingCounted(_ isCounted: Bool) {
+        guard isCounted != countsPendingInBalance else { return }
+        countsPendingInBalance = isCounted
+        isCounted ? Haptics.success() : Haptics.tap()
+        rebuildSeries()
+    }
+
     // MARK: - Scrubbing
 
+    /// The point on the line directly under the user's finger.
     var scrubPoint: BankrollPoint? {
-        guard let index = scrubIndex, series.indices.contains(index) else { return nil }
-        return series[index]
+        guard let progress = scrubProgress else { return nil }
+        return homeInterpolatedPoint(series, at: progress)
     }
 
     var isScrubbing: Bool { scrubPoint != nil }
@@ -256,15 +315,25 @@ final class HomeViewModel {
         return point.cents - first.cents
     }
 
-    func scrub(to index: Int?) {
-        guard let index else {
-            scrubIndex = nil
+    /// Nearest sample to the finger, used to pace haptics.
+    private var lastHapticIndex: Int?
+
+    func scrub(to progress: Double?) {
+        guard let progress else {
+            scrubProgress = nil
+            lastHapticIndex = nil
             return
         }
-        let clamped = min(max(index, 0), max(series.count - 1, 0))
-        guard clamped != scrubIndex else { return }
-        scrubIndex = clamped
-        Haptics.selection()
+        let clamped = min(max(progress, 0), 1)
+        scrubProgress = clamped
+
+        // One tick per data point crossed, rather than a buzz on every pixel.
+        guard series.count > 1 else { return }
+        let index = Int((clamped * Double(series.count - 1)).rounded())
+        if index != lastHapticIndex {
+            lastHapticIndex = index
+            Haptics.selection()
+        }
     }
 
     // MARK: - Activity

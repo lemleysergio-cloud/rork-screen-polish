@@ -411,6 +411,27 @@ nonisolated enum HomeSeed {
     }
 }
 
+// MARK: - Scrub sampling
+
+/// Point on the plotted line at `progress` (0...1) across the window.
+///
+/// Interpolates between samples instead of snapping to the nearest one, so the
+/// crosshair and readout sit exactly where the finger is rather than jumping
+/// between data points.
+nonisolated func homeInterpolatedPoint(_ points: [BankrollPoint], at progress: Double) -> BankrollPoint? {
+    guard points.count > 1 else { return points.first }
+    let clamped = Swift.min(Swift.max(progress, 0), 1)
+    let position = clamped * Double(points.count - 1)
+    let lower = Int(position.rounded(.down))
+    let upper = Swift.min(lower + 1, points.count - 1)
+    let fraction = position - Double(lower)
+    let start = points[lower]
+    let end = points[upper]
+    let cents = Double(start.cents) + (Double(end.cents) - Double(start.cents)) * fraction
+    let date = start.date.addingTimeInterval(end.date.timeIntervalSince(start.date) * fraction)
+    return BankrollPoint(id: lower, date: date, cents: Int(cents.rounded()))
+}
+
 // MARK: - Formatting
 
 /// Formats signed cents as currency, e.g. `+$1,689.62` or `−$50.00`.

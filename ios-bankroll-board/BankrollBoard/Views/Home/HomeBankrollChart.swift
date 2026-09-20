@@ -11,8 +11,9 @@ import UIKit
 struct HomeBankrollChart: View {
     let points: [BankrollPoint]
     let timeframe: HomeTimeframe
-    let scrubIndex: Int?
-    let onScrub: (Int?) -> Void
+    /// Horizontal position being inspected, 0...1 across the plot.
+    let scrubProgress: Double?
+    let onScrub: (Double?) -> Void
     var height: CGFloat = 206
     /// Width reserved for the value axis gutter.
     private let gutter: CGFloat = 52
@@ -63,9 +64,11 @@ struct HomeBankrollChart: View {
                         endpointDot(width: plotWidth, height: plotHeight)
                             .offset(x: gutter)
 
-                        if let index = scrubIndex, points.indices.contains(index) {
+                        if let progress = scrubProgress,
+                           let point = homeInterpolatedPoint(points, at: progress) {
                             scrubOverlay(
-                                index: index,
+                                progress: progress,
+                                point: point,
                                 width: plotWidth,
                                 height: plotHeight
                             )
@@ -79,7 +82,7 @@ struct HomeBankrollChart: View {
                                 onScrub(nil)
                                 return
                             }
-                            onScrub(index(forX: location.x, width: plotWidth))
+                            onScrub(progress(forX: location.x, width: plotWidth))
                         }
                     )
                     .frame(width: plotWidth, height: plotHeight)
@@ -110,10 +113,13 @@ struct HomeBankrollChart: View {
         return height - CGFloat(ratio) * height
     }
 
-    private func index(forX position: CGFloat, width: CGFloat) -> Int {
-        guard points.count > 1, width > 0 else { return 0 }
-        let ratio = min(max(position / width, 0), 1)
-        return Int((ratio * CGFloat(points.count - 1)).rounded())
+    /// Touch x within the plot, as a 0...1 fraction of the window.
+    ///
+    /// Reported continuously rather than rounded to a sample, so the crosshair
+    /// tracks the finger exactly instead of snapping between data points.
+    private func progress(forX position: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0 }
+        return Double(min(max(position / width, 0), 1))
     }
 
     private func linePath(width: CGFloat, height: CGFloat) -> Path {
@@ -220,9 +226,15 @@ struct HomeBankrollChart: View {
 
     // MARK: - Scrub overlay
 
-    private func scrubOverlay(index: Int, width: CGFloat, height: CGFloat) -> some View {
-        let point = points[index]
-        let positionX = x(for: index, width: width)
+    private func scrubOverlay(
+        progress: Double,
+        point: BankrollPoint,
+        width: CGFloat,
+        height: CGFloat
+    ) -> some View {
+        // Both the line and the dot come from the same fraction, so the marker
+        // sits precisely where the finger is on the plotted curve.
+        let positionX = width * CGFloat(progress)
         let positionY = y(for: Double(point.cents), height: height)
 
         return ZStack(alignment: .topLeading) {

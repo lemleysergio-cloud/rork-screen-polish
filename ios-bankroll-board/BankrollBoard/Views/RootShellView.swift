@@ -17,11 +17,7 @@ struct RootShellView: View {
                 case .home:
                     HomeScreen()
                 case .stats:
-                    BBPlaceholderScreen(
-                        eyebrow: "STATS",
-                        title: "Stats",
-                        message: "Deposits, withdrawals, and verified profit over time — charted from the records you log."
-                    )
+                    StatsScreen()
                 case .journey:
                     JourneyHeroScreen()
                 case .community:

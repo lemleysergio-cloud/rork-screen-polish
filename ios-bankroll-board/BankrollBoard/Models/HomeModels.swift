@@ -212,7 +212,7 @@ nonisolated enum HomeActivityFilter: String, CaseIterable, Identifiable, Sendabl
 
 /// Minimal brand lookup for activity rows: real logo when the image set exists,
 /// otherwise an initials monogram on the operator's brand color.
-nonisolated struct HomeCasino: Sendable {
+nonisolated struct HomeCasino: Identifiable, Sendable {
     let id: String
     let name: String
     let assetName: String
@@ -225,7 +225,17 @@ nonisolated struct HomeCasino: Sendable {
         .init(id: "fanduel", name: "FanDuel", assetName: "fanduel", brandColorHex: 0x1493FF),
         .init(id: "betmgm", name: "BetMGM", assetName: "betmgm", brandColorHex: 0xC9A84C),
         .init(id: "bet365", name: "bet365", assetName: "bet365", brandColorHex: 0x087B5A),
-        .init(id: "caesars", name: "Caesars Palace", assetName: "caesars", brandColorHex: 0xC70000)
+        .init(id: "caesars", name: "Caesars Palace", assetName: "caesars", brandColorHex: 0xC70000),
+        .init(id: "hollywood", name: "Hollywood Casino", assetName: "hollywoodcasino", brandColorHex: 0xF2C230),
+        .init(id: "betrivers", name: "BetRivers", assetName: "betrivers", brandColorHex: 0xE8B031),
+        .init(id: "kalshi", name: "Kalshi", assetName: "kalshi", brandColorHex: 0x10C98F),
+        .init(id: "polymarket", name: "Polymarket", assetName: "polymarket", brandColorHex: 0x2D9CDB),
+        .init(id: "thescore-bet", name: "theScore Bet", assetName: "thescorebet", brandColorHex: 0x5A46C8),
+        .init(id: "bally", name: "Bally Casino", assetName: "ballycasino", brandColorHex: 0xE03C31),
+        .init(id: "espn-bet", name: "ESPN BET", assetName: "espnbet", brandColorHex: 0xD50A0A),
+        .init(id: "borgata", name: "Borgata Casino", assetName: "borgata", brandColorHex: 0x8A6D3B),
+        .init(id: "betway", name: "Betway", assetName: "betway", brandColorHex: 0x0E7E3C),
+        .init(id: "pokerstars", name: "PokerStars Casino", assetName: "pokerstars", brandColorHex: 0xE0001B)
     ]
 
     static func lookup(_ id: String) -> HomeCasino? {

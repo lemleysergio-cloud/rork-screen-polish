@@ -34,6 +34,7 @@ final class BankrollBoardUITests: XCTestCase {
     @MainActor
     func testJourneyScrollsToFooterAndBack() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth"]
         app.launch()
         let scroll = app.scrollViews["journey.page"]
         XCTAssertTrue(scroll.waitForExistence(timeout: 10))

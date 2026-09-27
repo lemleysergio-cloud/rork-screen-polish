@@ -11,6 +11,13 @@ struct RootShellView: View {
     var onLogout: () -> Void = {}
 
     @State private var selectedTab: BBTab = .journey
+    /// Home look chosen in Settings → Appearance. See `HomePalette.swift`.
+    @AppStorage(HomeStyle.storageKey) private var homeStyle: HomeStyle = HomeStyle.defaultStyle
+
+    /// Only Home follows the chosen look; every other tab stays dark.
+    private var colorScheme: ColorScheme {
+        selectedTab == .home ? homeStyle.palette.colorScheme : .dark
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -18,6 +25,7 @@ struct RootShellView: View {
                 switch selectedTab {
                 case .home:
                     HomeScreen()
+                        .environment(\.homePalette, homeStyle.palette)
                 case .stats:
                     StatsScreen()
                 case .journey:
@@ -34,7 +42,8 @@ struct RootShellView: View {
                 .padding(.bottom, 6)
         }
         .animation(.easeOut(duration: 0.18), value: selectedTab)
-        .preferredColorScheme(.dark)
+        .animation(.easeInOut(duration: 0.25), value: homeStyle)
+        .preferredColorScheme(colorScheme)
     }
 }
 

@@ -9,16 +9,12 @@
 import SwiftUI
 
 struct HomeScreen: View {
+    @Environment(\.homePalette) private var palette
     @State private var model = HomeViewModel()
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [JourneyPalette.canvasDeep, JourneyPalette.canvas, Color(rgb: 0x132F20)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            HomeBackdrop()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -90,6 +86,7 @@ struct HomeScreen: View {
         }
         .fullScreenCover(isPresented: $model.showingChartDetail) {
             HomeChartDetailView(model: model)
+                .environment(\.homePalette, palette)
         }
         .sheet(item: $model.pendingReauth) { request in
             HomeReauthSheet(
@@ -99,12 +96,13 @@ struct HomeScreen: View {
         }
         .sheet(isPresented: $model.showingPendingReview) {
             HomePendingReviewView(model: model)
+                .environment(\.homePalette, palette)
         }
     }
 
     private var rule: some View {
         Rectangle()
-            .fill(BBTheme.hairline.opacity(0.55))
+            .fill(palette.hairline.opacity(0.55))
             .frame(height: 1)
             .padding(.horizontal, BBTheme.screenMargin)
     }
@@ -114,11 +112,11 @@ struct HomeScreen: View {
     private var hero: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("YOUR OVERVIEW")
-                .bbEyebrowStyle()
+                .homeEyebrowStyle(palette)
 
             Text("The Bank")
                 .font(BBTheme.headline(40))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
                 .padding(.top, 6)
 
             balanceRow
@@ -126,7 +124,7 @@ struct HomeScreen: View {
 
             Text(balanceCaption)
                 .font(.system(size: 11))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .padding(.top, 10)
 
             deltaRow
@@ -141,10 +139,10 @@ struct HomeScreen: View {
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.dollars)
                 .font(BBTheme.money(48))
-                .foregroundStyle(BBTheme.positive)
+                .foregroundStyle(palette.positive)
             Text(parts.cents)
                 .font(BBTheme.money(32))
-                .foregroundStyle(BBTheme.positive.opacity(0.85))
+                .foregroundStyle(palette.positive.opacity(0.85))
         }
         .monospacedDigit()
         .lineLimit(1)
@@ -173,10 +171,10 @@ struct HomeScreen: View {
                     .monospacedDigit()
             }
             Text(model.timeframe.deltaCaption)
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
         }
         .font(.system(size: 12, weight: .medium))
-        .foregroundStyle(isNegative ? Color(rgb: 0xE2928A) : BBTheme.positive)
+        .foregroundStyle(isNegative ? palette.negative : palette.positive)
         .accessibilityElement(children: .combine)
     }
 
@@ -189,18 +187,18 @@ struct HomeScreen: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(BBTheme.gold)
+                    .foregroundStyle(palette.accent)
                     .padding(.top, 1)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(model.pendingTransfers.count) transfer\(model.pendingTransfers.count == 1 ? "" : "s") pending at your bank")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(BBTheme.ink)
+                        .foregroundStyle(palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("Not counted in your balance until the bank settles them.")
                         .font(.system(size: 11))
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -208,7 +206,7 @@ struct HomeScreen: View {
             }
 
             Divider()
-                .overlay(BBTheme.gold.opacity(0.18))
+                .overlay(palette.accent.opacity(0.18))
                 .padding(.vertical, 12)
 
             HStack(alignment: .center, spacing: 12) {
@@ -216,10 +214,10 @@ struct HomeScreen: View {
                     Text("NET WHEN SETTLED")
                         .font(.system(size: 9, weight: .bold))
                         .kerning(0.8)
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                     Text(homeMoney(cents: model.pendingNetCents))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(model.pendingNetCents < 0 ? Color(rgb: 0xE2928A) : BBTheme.positive)
+                        .foregroundStyle(model.pendingNetCents < 0 ? palette.negative : palette.positive)
                         .monospacedDigit()
                 }
 
@@ -229,10 +227,10 @@ struct HomeScreen: View {
                     Text("PROJECTED BALANCE")
                         .font(.system(size: 9, weight: .bold))
                         .kerning(0.8)
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                     Text(homeMoney(cents: model.projectedCents, showsPlus: false))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(BBTheme.ink)
+                        .foregroundStyle(palette.ink)
                         .monospacedDigit()
                 }
             }
@@ -246,7 +244,7 @@ struct HomeScreen: View {
                     Image(systemName: "arrow.right")
                         .font(.system(size: 10, weight: .semibold))
                 }
-                .foregroundStyle(BBTheme.gold)
+                .foregroundStyle(palette.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 44)
                 .contentShape(Rectangle())
@@ -258,10 +256,10 @@ struct HomeScreen: View {
         .padding(.bottom, 2)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(BBTheme.gold.opacity(0.05))
+                .fill(palette.accent.opacity(0.05))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(BBTheme.gold.opacity(0.26), lineWidth: 1)
+                        .stroke(palette.accent.opacity(0.26), lineWidth: 1)
                 }
         }
     }
@@ -275,11 +273,11 @@ struct HomeScreen: View {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(BBTheme.positive)
+                    .foregroundStyle(palette.positive)
 
                 Text("Counting \(homeMoney(cents: model.pendingNetCents)) in pending")
                     .font(.system(size: 12))
-                    .foregroundStyle(BBTheme.inkMuted)
+                    .foregroundStyle(palette.inkMuted)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -288,13 +286,13 @@ struct HomeScreen: View {
 
                 Text("Change")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(BBTheme.gold)
+                    .foregroundStyle(palette.accent)
             }
             .padding(.horizontal, 14)
             .frame(height: 48)
             .background {
                 RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .stroke(BBTheme.hairline.opacity(0.7), lineWidth: 1)
+                    .stroke(palette.hairline.opacity(0.7), lineWidth: 1)
             }
             .contentShape(Rectangle())
         }
@@ -309,7 +307,7 @@ struct HomeScreen: View {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("Bankroll over time")
                     .font(BBTheme.headline(25))
-                    .foregroundStyle(BBTheme.ink)
+                    .foregroundStyle(palette.ink)
 
                 Spacer(minLength: 0)
 
@@ -323,7 +321,7 @@ struct HomeScreen: View {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundStyle(BBTheme.gold)
+                    .foregroundStyle(palette.accent)
                     .frame(height: 44)
                     .contentShape(Rectangle())
                 }
@@ -334,7 +332,7 @@ struct HomeScreen: View {
 
             Text("Cumulative net transfers. Touch and drag the chart to inspect any point.")
                 .font(.system(size: 11))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, BBTheme.screenMargin)
@@ -365,7 +363,7 @@ struct HomeScreen: View {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("Recent activity")
                     .font(BBTheme.headline(25))
-                    .foregroundStyle(BBTheme.ink)
+                    .foregroundStyle(palette.ink)
 
                 Spacer(minLength: 0)
 
@@ -375,7 +373,7 @@ struct HomeScreen: View {
                     } label: {
                         Text(model.isActivityExpanded ? "Show less" : "See all")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(BBTheme.gold)
+                            .foregroundStyle(palette.accent)
                             .frame(height: 44)
                             .contentShape(Rectangle())
                     }
@@ -403,12 +401,12 @@ struct HomeScreen: View {
                     } label: {
                         Text("Show \(model.hiddenActivityCount) earlier transfer\(model.hiddenActivityCount == 1 ? "" : "s")")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(BBTheme.gold)
+                            .foregroundStyle(palette.accent)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
                             .background {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(BBTheme.hairline, lineWidth: 1)
+                                    .stroke(palette.hairline, lineWidth: 1)
                             }
                     }
                     .buttonStyle(BBPressStyle())
@@ -444,17 +442,17 @@ struct HomeScreen: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Nothing here yet")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
             Text("No \(model.activityFilter.title.lowercased()) transfers to show. Try another filter.")
                 .font(.system(size: 12))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(BBTheme.hairline.opacity(0.7), lineWidth: 1)
+                .stroke(palette.hairline.opacity(0.7), lineWidth: 1)
         }
     }
 }
@@ -465,19 +463,21 @@ struct HomeScreen: View {
 struct HomeActivityDaySection: View {
     let section: HomeActivitySection
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(section.title.uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .kerning(1.1)
-                    .foregroundStyle(BBTheme.inkMuted)
+                    .foregroundStyle(palette.inkMuted)
 
                 Spacer(minLength: 8)
 
                 Text(homeMoney(cents: section.netCents))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(section.netCents < 0 ? Color(rgb: 0xE2928A) : BBTheme.positive)
+                    .foregroundStyle(section.netCents < 0 ? palette.negative : palette.positive)
                     .monospacedDigit()
             }
             .padding(.horizontal, BBTheme.screenMargin)
@@ -487,7 +487,7 @@ struct HomeActivityDaySection: View {
                 VStack(spacing: 0) {
                     if index > 0 {
                         Rectangle()
-                            .fill(BBTheme.hairline.opacity(0.4))
+                            .fill(palette.hairline.opacity(0.4))
                             .frame(height: 1)
                     }
                     HomeActivityRow(transfer: transfer)
@@ -505,6 +505,8 @@ struct HomeTimeframeBar: View {
     let selection: HomeTimeframe
     let onSelect: (HomeTimeframe) -> Void
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         HStack(spacing: 3) {
             ForEach(HomeTimeframe.allCases) { timeframe in
@@ -514,16 +516,16 @@ struct HomeTimeframeBar: View {
                 } label: {
                     Text(timeframe.short)
                         .font(.system(size: 12, weight: isActive ? .semibold : .regular))
-                        .foregroundStyle(isActive ? BBTheme.goldBright : BBTheme.inkMuted)
+                        .foregroundStyle(isActive ? palette.accentBright : palette.inkMuted)
                         .frame(maxWidth: .infinity)
                         .frame(height: 42)
                         .background {
                             if isActive {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(BBTheme.gold.opacity(0.14))
+                                    .fill(palette.accent.opacity(0.14))
                                     .overlay {
                                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .stroke(BBTheme.gold.opacity(0.3), lineWidth: 1)
+                                            .stroke(palette.accent.opacity(0.3), lineWidth: 1)
                                     }
                             }
                         }
@@ -537,10 +539,10 @@ struct HomeTimeframeBar: View {
         .padding(3)
         .background {
             RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(Color.black.opacity(0.16))
+                .fill(palette.track)
                 .overlay {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .stroke(BBTheme.hairline.opacity(0.6), lineWidth: 1)
+                        .stroke(palette.hairline.opacity(0.6), lineWidth: 1)
                 }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.82), value: selection)
@@ -555,12 +557,14 @@ struct HomeFilterChip: View {
     var isAccented: Bool = false
     let action: () -> Void
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if isAccented {
                     Circle()
-                        .fill(BBTheme.gold)
+                        .fill(palette.accent)
                         .frame(width: 5, height: 5)
                 }
                 Text(title)
@@ -570,16 +574,16 @@ struct HomeFilterChip: View {
                     .monospacedDigit()
                     .opacity(0.7)
             }
-            .foregroundStyle(isSelected ? JourneyPalette.canvasDeep : BBTheme.inkMuted)
+            .foregroundStyle(isSelected ? palette.onAccentFill : palette.inkMuted)
             .padding(.horizontal, 14)
             .frame(height: 38)
             .background {
                 Capsule()
-                    .fill(isSelected ? BBTheme.gold : Color.white.opacity(0.05))
+                    .fill(isSelected ? palette.accentFill : palette.surface)
                     .overlay {
                         Capsule()
                             .stroke(
-                                isSelected ? Color.clear : BBTheme.hairline.opacity(0.7),
+                                isSelected ? Color.clear : palette.hairline.opacity(0.7),
                                 lineWidth: 1
                             )
                     }

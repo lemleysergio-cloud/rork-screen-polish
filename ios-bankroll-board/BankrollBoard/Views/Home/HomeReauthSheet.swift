@@ -25,36 +25,32 @@ struct HomeReauthSheet: View {
     let onFinished: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.homePalette) private var palette
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [JourneyPalette.canvasDeep, JourneyPalette.canvas],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            HomeBackdrop()
 
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
 
                 Image(systemName: "building.columns")
                     .font(.system(size: 34, weight: .light))
-                    .foregroundStyle(BBTheme.gold)
+                    .foregroundStyle(palette.accent)
                     .frame(width: 84, height: 84)
                     .background {
-                        Circle().stroke(BBTheme.gold.opacity(0.3), lineWidth: 1)
+                        Circle().stroke(palette.accent.opacity(0.3), lineWidth: 1)
                     }
 
                 Text("Reconnect \(request.institutionName)")
                     .font(BBTheme.headline(26))
-                    .foregroundStyle(BBTheme.ink)
+                    .foregroundStyle(palette.ink)
                     .multilineTextAlignment(.center)
                     .padding(.top, 22)
 
                 Text("Your bank asks you to sign in again every so often. Once you do, pending and settled transfers resume updating automatically.")
                     .font(.system(size: 13))
-                    .foregroundStyle(BBTheme.inkMuted)
+                    .foregroundStyle(palette.inkMuted)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -78,7 +74,7 @@ struct HomeReauthSheet: View {
                 } label: {
                     Text("Not now")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                         .frame(height: 44)
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
@@ -89,6 +85,7 @@ struct HomeReauthSheet: View {
             .padding(.horizontal, BBTheme.screenMargin)
             .padding(.vertical, 28)
         }
+        .preferredColorScheme(palette.colorScheme)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .accessibilityIdentifier("home.reauth")

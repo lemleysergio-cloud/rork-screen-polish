@@ -55,8 +55,10 @@ struct HomeCasinoMark: View {
 struct HomeActivityRow: View {
     let transfer: HomeTransfer
 
+    @Environment(\.homePalette) private var palette
+
     private var amountColor: Color {
-        transfer.cents < 0 ? Color(rgb: 0xE2928A) : BBTheme.positive
+        transfer.cents < 0 ? palette.negative : palette.positive
     }
 
     var body: some View {
@@ -66,14 +68,14 @@ struct HomeActivityRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(transfer.title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(BBTheme.ink)
+                    .foregroundStyle(palette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
 
                 HStack(spacing: 6) {
                     Text(transfer.direction.flowLabel)
                         .font(.system(size: 11))
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
 
                     if transfer.status == .pending {
                         HomePendingBadge(expectedDate: transfer.expectedDate)
@@ -93,7 +95,7 @@ struct HomeActivityRow: View {
 
                 Text(homeShortDate(transfer.date))
                     .font(.system(size: 10))
-                    .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+                    .foregroundStyle(palette.inkMuted.opacity(0.85))
             }
         }
         .padding(.vertical, 13)
@@ -119,6 +121,8 @@ struct HomeActivityRow: View {
 struct HomePendingBadge: View {
     let expectedDate: Date?
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "clock")
@@ -127,13 +131,13 @@ struct HomePendingBadge: View {
                 .font(.system(size: 9, weight: .semibold))
                 .kerning(0.3)
         }
-        .foregroundStyle(BBTheme.gold)
+        .foregroundStyle(palette.accent)
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
         .background {
             Capsule()
-                .fill(BBTheme.gold.opacity(0.1))
-                .overlay { Capsule().stroke(BBTheme.gold.opacity(0.32), lineWidth: 1) }
+                .fill(palette.accent.opacity(0.1))
+                .overlay { Capsule().stroke(palette.accent.opacity(0.32), lineWidth: 1) }
         }
     }
 

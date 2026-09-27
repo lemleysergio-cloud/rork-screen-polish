@@ -12,16 +12,12 @@ struct HomePendingReviewView: View {
     let model: HomeViewModel
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.homePalette) private var palette
 
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [JourneyPalette.canvasDeep, JourneyPalette.canvas],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                HomeBackdrop()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -34,7 +30,7 @@ struct HomePendingReviewView: View {
                             .padding(.top, 20)
 
                         Text("STILL IN FLIGHT")
-                            .bbEyebrowStyle()
+                            .homeEyebrowStyle(palette)
                             .padding(.horizontal, BBTheme.screenMargin)
                             .padding(.top, 28)
 
@@ -42,7 +38,7 @@ struct HomePendingReviewView: View {
                             VStack(spacing: 0) {
                                 if index > 0 {
                                     Rectangle()
-                                        .fill(BBTheme.hairline.opacity(0.4))
+                                        .fill(palette.hairline.opacity(0.4))
                                         .frame(height: 1)
                                 }
                                 HomeActivityRow(transfer: transfer)
@@ -68,12 +64,12 @@ struct HomePendingReviewView: View {
                         Haptics.tap()
                         dismiss()
                     }
-                    .foregroundStyle(BBTheme.gold)
+                    .foregroundStyle(palette.accent)
                 }
             }
-            .toolbarBackground(JourneyPalette.canvasDeep, for: .navigationBar)
+            .toolbarBackground(palette.backgroundColors.first ?? .clear, for: .navigationBar)
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(palette.colorScheme)
         .accessibilityIdentifier("home.pendingReview")
     }
 
@@ -83,12 +79,12 @@ struct HomePendingReviewView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("\(model.pendingTransfers.count) transfer\(model.pendingTransfers.count == 1 ? "" : "s") on the way")
                 .font(BBTheme.headline(28))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(arrivalCaption)
                 .font(.system(size: 12))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .padding(.top, 6)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -100,7 +96,7 @@ struct HomePendingReviewView: View {
                     .font(BBTheme.money(26))
                     .opacity(0.85)
             }
-            .foregroundStyle(model.pendingNetCents < 0 ? Color(rgb: 0xE2928A) : BBTheme.positive)
+            .foregroundStyle(model.pendingNetCents < 0 ? palette.negative : palette.positive)
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.6)
@@ -108,7 +104,7 @@ struct HomePendingReviewView: View {
 
             Text("Net change once it all settles")
                 .font(.system(size: 11))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .padding(.top, 6)
         }
     }
@@ -126,12 +122,12 @@ struct HomePendingReviewView: View {
             splitTile(
                 label: "ARRIVING",
                 cents: model.pendingInflowCents,
-                tint: BBTheme.positive
+                tint: palette.positive
             )
             splitTile(
                 label: "LEAVING",
                 cents: model.pendingOutflowCents,
-                tint: Color(rgb: 0xE2928A)
+                tint: palette.negative
             )
         }
     }
@@ -141,7 +137,7 @@ struct HomePendingReviewView: View {
             Text(label)
                 .font(.system(size: 9, weight: .bold))
                 .kerning(0.8)
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
             Text(homeMoney(cents: cents, showsPlus: false))
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(tint)
@@ -153,10 +149,10 @@ struct HomePendingReviewView: View {
         .padding(14)
         .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(palette.surface)
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(BBTheme.hairline.opacity(0.7), lineWidth: 1)
+                        .stroke(palette.hairline.opacity(0.7), lineWidth: 1)
                 }
         }
     }
@@ -165,19 +161,19 @@ struct HomePendingReviewView: View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: "info.circle")
                 .font(.system(size: 12))
-                .foregroundStyle(BBTheme.gold.opacity(0.9))
+                .foregroundStyle(palette.accent.opacity(0.9))
                 .padding(.top, 1)
 
             Text("Counting pending money is a view preference. These transfers stay pending with your bank and keep showing in your activity until they settle.")
                 .font(.system(size: 11))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(BBTheme.hairline.opacity(0.6), lineWidth: 1)
+                .stroke(palette.hairline.opacity(0.6), lineWidth: 1)
         }
     }
 
@@ -187,13 +183,13 @@ struct HomePendingReviewView: View {
     private var actionBar: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(BBTheme.hairline.opacity(0.5))
+                .fill(palette.hairline.opacity(0.5))
                 .frame(height: 1)
 
             VStack(spacing: 8) {
                 Text(projectionCaption)
                     .font(.system(size: 11))
-                    .foregroundStyle(BBTheme.inkMuted)
+                    .foregroundStyle(palette.inkMuted)
                     .monospacedDigit()
 
                 if model.countsPendingInBalance {
@@ -203,12 +199,12 @@ struct HomePendingReviewView: View {
                     } label: {
                         Text("Stop counting pending")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(BBTheme.gold)
+                            .foregroundStyle(palette.accent)
                             .frame(maxWidth: .infinity)
                             .frame(height: 54)
                             .background {
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(BBTheme.gold.opacity(0.45), lineWidth: 1)
+                                    .stroke(palette.accent.opacity(0.45), lineWidth: 1)
                             }
                     }
                     .buttonStyle(BBPressStyle())
@@ -219,12 +215,12 @@ struct HomePendingReviewView: View {
                     } label: {
                         Text("Count pending in my balance")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(JourneyPalette.canvasDeep)
+                            .foregroundStyle(palette.onAccentFill)
                             .frame(maxWidth: .infinity)
                             .frame(height: 54)
                             .background {
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(BBTheme.gold)
+                                    .fill(palette.accentFill)
                             }
                     }
                     .buttonStyle(BBPressStyle())
@@ -233,7 +229,7 @@ struct HomePendingReviewView: View {
             .padding(.horizontal, BBTheme.screenMargin)
             .padding(.top, 12)
             .padding(.bottom, 8)
-            .background(JourneyPalette.canvasDeep.opacity(0.94))
+            .background(palette.barFill)
         }
     }
 

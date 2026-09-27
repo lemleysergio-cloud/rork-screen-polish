@@ -18,6 +18,8 @@ struct HomeBankrollChart: View {
     /// Grow to fill the offered height instead of sitting at a fixed size.
     /// The full-screen view uses this so the plot doesn't strand empty space.
     var expands: Bool = false
+
+    @Environment(\.homePalette) private var palette
     /// Width reserved for the value axis gutter.
     private let gutter: CGFloat = 52
     /// Keeps the first and last samples off the plot edges so the endpoint dot
@@ -64,11 +66,15 @@ struct HomeBankrollChart: View {
 
                         linePath(width: plotWidth, height: plotHeight)
                             .stroke(
-                                BBTheme.goldSweep,
+                                LinearGradient(
+                                    colors: palette.chartLine,
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
                                 style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round)
                             )
                             .offset(x: gutter)
-                            .shadow(color: BBTheme.gold.opacity(0.35), radius: 7, y: 3)
+                            .shadow(color: palette.chartGlow.opacity(0.35), radius: 7, y: 3)
 
                         endpointDot(width: plotWidth, height: plotHeight)
                             .offset(x: gutter)
@@ -179,9 +185,9 @@ struct HomeBankrollChart: View {
         .fill(
             LinearGradient(
                 colors: [
-                    BBTheme.gold.opacity(0.26),
-                    BBTheme.gold.opacity(0.08),
-                    BBTheme.gold.opacity(0)
+                    palette.chartGlow.opacity(0.26),
+                    palette.chartGlow.opacity(0.08),
+                    palette.chartGlow.opacity(0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -193,9 +199,9 @@ struct HomeBankrollChart: View {
         Group {
             if let last = points.last {
                 Circle()
-                    .fill(BBTheme.goldBright)
+                    .fill(palette.chartDot)
                     .frame(width: 9, height: 9)
-                    .shadow(color: BBTheme.gold.opacity(0.6), radius: 5)
+                    .shadow(color: palette.chartGlow.opacity(0.6), radius: 5)
                     .position(
                         x: x(for: points.count - 1, width: width),
                         y: y(for: Double(last.cents), height: height)
@@ -220,13 +226,13 @@ struct HomeBankrollChart: View {
                 let position = y(for: tick, height: plotHeight)
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.07))
+                    .fill(palette.gridLine)
                     .frame(width: plotWidth, height: 1)
                     .position(x: gutter + plotWidth / 2, y: position)
 
                 Text(homeAxisLabel(cents: tick, step: axisStep))
                     .font(.system(size: 10))
-                    .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+                    .foregroundStyle(palette.inkMuted.opacity(0.85))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(width: labelWidth, alignment: .trailing)
@@ -253,7 +259,7 @@ struct HomeBankrollChart: View {
 
                         Text(homeAxisDateLabel(points[index].date, timeframe: timeframe))
                             .font(.system(size: 10))
-                            .foregroundStyle(BBTheme.inkMuted.opacity(0.85))
+                            .foregroundStyle(palette.inkMuted.opacity(0.85))
                             .fixedSize()
                             .position(
                                 x: min(max(centre, 22), geo.size.width - 22),
@@ -288,14 +294,14 @@ struct HomeBankrollChart: View {
 
         return ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(BBTheme.gold.opacity(0.4))
+                .fill(palette.accent.opacity(0.4))
                 .frame(width: 1, height: height)
                 .position(x: positionX, y: height / 2)
 
             Circle()
-                .fill(BBTheme.ink)
+                .fill(palette.scrubDot)
                 .frame(width: 11, height: 11)
-                .overlay { Circle().stroke(BBTheme.gold, lineWidth: 2) }
+                .overlay { Circle().stroke(palette.accent, lineWidth: 2) }
                 .position(x: positionX, y: positionY)
 
             calloutView(point: point)
@@ -313,22 +319,22 @@ struct HomeBankrollChart: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(homeScrubDateLabel(point.date, timeframe: timeframe))
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
             Text(homeMoney(cents: point.cents, showsPlus: false))
                 .font(BBTheme.money(16))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
                 .monospacedDigit()
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
         .background {
             RoundedRectangle(cornerRadius: 11)
-                .fill(BBTheme.canvasDeep.opacity(0.96))
+                .fill(palette.calloutFill)
                 .overlay {
                     RoundedRectangle(cornerRadius: 11)
-                        .stroke(BBTheme.hairline, lineWidth: 1)
+                        .stroke(palette.hairline, lineWidth: 1)
                 }
-                .shadow(color: .black.opacity(0.4), radius: 10, y: 4)
+                .shadow(color: palette.shadow, radius: 10, y: 4)
         }
     }
 

@@ -19,13 +19,15 @@ struct HomeSyncBar: View {
     let isSyncing: Bool
     let onRefresh: () -> Void
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         HStack(spacing: 8) {
             HomeSyncSpinner(isActive: isSyncing)
 
             Text(isSyncing ? "Syncing with your bank…" : "Updated \(caption.lowercased())")
                 .font(.system(size: 11))
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .contentTransition(.opacity)
@@ -39,13 +41,13 @@ struct HomeSyncBar: View {
                     Text("Refresh")
                         .font(.system(size: 12, weight: .medium))
                 }
-                .foregroundStyle(isSyncing ? BBTheme.inkMuted : BBTheme.gold)
+                .foregroundStyle(isSyncing ? palette.inkMuted : palette.accent)
                 .padding(.horizontal, 12)
                 .frame(height: 34)
                 .background {
                     Capsule()
                         .stroke(
-                            (isSyncing ? BBTheme.hairline : BBTheme.gold.opacity(0.35)),
+                            (isSyncing ? palette.hairline : palette.accent.opacity(0.35)),
                             lineWidth: 1
                         )
                 }
@@ -65,24 +67,25 @@ struct HomeSyncBar: View {
 struct HomeSyncSpinner: View {
     let isActive: Bool
 
+    @Environment(\.homePalette) private var palette
     @State private var angle: Double = 0
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(BBTheme.hairline.opacity(0.8), lineWidth: 1.6)
+                .stroke(palette.hairline.opacity(0.8), lineWidth: 1.6)
 
             if isActive {
                 Circle()
                     .trim(from: 0, to: 0.3)
                     .stroke(
-                        BBTheme.gold,
+                        palette.accent,
                         style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
                     )
                     .rotationEffect(.degrees(angle))
             } else {
                 Circle()
-                    .fill(BBTheme.positive.opacity(0.65))
+                    .fill(palette.positive.opacity(0.65))
                     .frame(width: 5, height: 5)
             }
         }
@@ -112,6 +115,8 @@ struct HomeSyncBanner: View {
     let onRetry: () -> Void
     let onDismiss: () -> Void
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         switch phase {
         case .idle, .syncing:
@@ -119,14 +124,14 @@ struct HomeSyncBanner: View {
         case .succeeded(let newTransfers, let newlySettled):
             banner(
                 symbol: "checkmark.circle.fill",
-                tint: BBTheme.positive,
+                tint: palette.positive,
                 message: successMessage(newTransfers: newTransfers, newlySettled: newlySettled),
                 actionTitle: nil
             )
         case .failed(let message, let isRecoverable):
             banner(
                 symbol: "exclamationmark.triangle.fill",
-                tint: Color(rgb: 0xE2928A),
+                tint: palette.negative,
                 message: message,
                 actionTitle: isRecoverable ? "Retry" : nil
             )
@@ -158,7 +163,7 @@ struct HomeSyncBanner: View {
 
             Text(message)
                 .font(.system(size: 12))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 6)
@@ -167,7 +172,7 @@ struct HomeSyncBanner: View {
                 Button(action: onRetry) {
                     Text(actionTitle)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(BBTheme.gold)
+                        .foregroundStyle(palette.accent)
                         .frame(height: 44)
                         .padding(.horizontal, 4)
                         .contentShape(Rectangle())
@@ -177,7 +182,7 @@ struct HomeSyncBanner: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -208,23 +213,25 @@ struct HomeReconnectCard: View {
     let accounts: [LinkedAccount]
     let onReconnect: (LinkedAccount) -> Void
 
+    @Environment(\.homePalette) private var palette
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "link.badge.plus")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(rgb: 0xE2A25A))
+                    .foregroundStyle(palette.warning)
                     .padding(.top, 1)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(accounts.count == 1 ? "A bank connection needs attention" : "\(accounts.count) bank connections need attention")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(BBTheme.ink)
+                        .foregroundStyle(palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("New transfers won't appear until you reconnect.")
                         .font(.system(size: 11))
-                        .foregroundStyle(BBTheme.inkMuted)
+                        .foregroundStyle(palette.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -235,15 +242,15 @@ struct HomeReconnectCard: View {
                 HStack(spacing: 10) {
                     Image(systemName: account.connection.symbol)
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(rgb: 0xE2A25A))
+                        .foregroundStyle(palette.warning)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(account.displayName)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(BBTheme.ink)
+                            .foregroundStyle(palette.ink)
                         Text("Last synced \(homeRelativeTime(account.lastSyncedAt).lowercased())")
                             .font(.system(size: 10))
-                            .foregroundStyle(BBTheme.inkMuted)
+                            .foregroundStyle(palette.inkMuted)
                     }
 
                     Spacer(minLength: 8)
@@ -254,10 +261,10 @@ struct HomeReconnectCard: View {
                         } label: {
                             Text("Reconnect")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(JourneyPalette.canvasDeep)
+                                .foregroundStyle(palette.onAccentFill)
                                 .padding(.horizontal, 14)
                                 .frame(height: 34)
-                                .background { Capsule().fill(BBTheme.gold) }
+                                .background { Capsule().fill(palette.accentFill) }
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(BBPressStyle())
@@ -265,7 +272,7 @@ struct HomeReconnectCard: View {
                     } else {
                         Text(account.connection.label)
                             .font(.system(size: 11))
-                            .foregroundStyle(BBTheme.inkMuted)
+                            .foregroundStyle(palette.inkMuted)
                     }
                 }
             }
@@ -273,10 +280,10 @@ struct HomeReconnectCard: View {
         .padding(15)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(rgb: 0xE2A25A).opacity(0.06))
+                .fill(palette.warning.opacity(0.06))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(rgb: 0xE2A25A).opacity(0.3), lineWidth: 1)
+                        .stroke(palette.warning.opacity(0.3), lineWidth: 1)
                 }
         }
     }

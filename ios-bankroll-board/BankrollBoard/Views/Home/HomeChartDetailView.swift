@@ -11,15 +11,11 @@ struct HomeChartDetailView: View {
     let model: HomeViewModel
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.homePalette) private var palette
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [JourneyPalette.canvasDeep, JourneyPalette.canvas],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            HomeBackdrop()
 
             VStack(alignment: .leading, spacing: 0) {
                 closeButton
@@ -28,7 +24,7 @@ struct HomeChartDetailView: View {
                     .padding(.top, 4)
 
                 Text("BANKROLL OVER TIME")
-                    .bbEyebrowStyle()
+                    .homeEyebrowStyle(palette)
                     .padding(.horizontal, BBTheme.screenMargin)
                     .padding(.top, 8)
 
@@ -41,7 +37,7 @@ struct HomeChartDetailView: View {
                     .padding(.top, 10)
 
                 Rectangle()
-                    .fill(BBTheme.hairline.opacity(0.55))
+                    .fill(palette.hairline.opacity(0.55))
                     .frame(height: 1)
                     .padding(.horizontal, BBTheme.screenMargin)
                     .padding(.top, 20)
@@ -67,7 +63,7 @@ struct HomeChartDetailView: View {
                 .padding(.bottom, 12)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(palette.colorScheme)
         .accessibilityIdentifier("home.chartDetail")
     }
 
@@ -79,10 +75,10 @@ struct HomeChartDetailView: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(BBTheme.ink)
+                .foregroundStyle(palette.ink)
                 .frame(width: 44, height: 44)
                 .background {
-                    Circle().stroke(BBTheme.hairline, lineWidth: 1)
+                    Circle().stroke(palette.hairline, lineWidth: 1)
                 }
         }
         .buttonStyle(BBPressStyle())
@@ -94,10 +90,10 @@ struct HomeChartDetailView: View {
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.dollars)
                 .font(BBTheme.money(42))
-                .foregroundStyle(BBTheme.positive)
+                .foregroundStyle(palette.positive)
             Text(parts.cents)
                 .font(BBTheme.money(28))
-                .foregroundStyle(BBTheme.positive.opacity(0.85))
+                .foregroundStyle(palette.positive.opacity(0.85))
         }
         .monospacedDigit()
         .lineLimit(1)
@@ -117,9 +113,9 @@ struct HomeChartDetailView: View {
                     .monospacedDigit()
             }
             Text(model.timeframe.long)
-                .foregroundStyle(BBTheme.inkMuted)
+                .foregroundStyle(palette.inkMuted)
         }
         .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(isNegative ? Color(rgb: 0xE2928A) : BBTheme.positive)
+        .foregroundStyle(isNegative ? palette.negative : palette.positive)
     }
 }

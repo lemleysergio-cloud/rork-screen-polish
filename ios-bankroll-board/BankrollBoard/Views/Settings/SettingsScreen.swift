@@ -12,6 +12,7 @@ struct SettingsScreen: View {
     let onLogout: () -> Void
 
     @Environment(AccountStore.self) private var accounts
+    @AppStorage(HomeStyle.storageKey) private var homeStyle: HomeStyle = HomeStyle.defaultStyle
     @State private var showsLogoutConfirmation: Bool = false
     @State private var isTogglingQuickSignIn: Bool = false
     @State private var securityMessage: String?
@@ -48,6 +49,15 @@ struct SettingsScreen: View {
                         .padding(.top, 28)
 
                     securityCard
+                        .padding(.top, 10)
+
+                    Text("APPEARANCE")
+                        .font(.system(size: 11, weight: .black))
+                        .kerning(1.4)
+                        .foregroundStyle(JourneyPalette.gold)
+                        .padding(.top, 28)
+
+                    appearanceCard
                         .padding(.top, 10)
 
                     logoutButton
@@ -167,6 +177,90 @@ struct SettingsScreen: View {
                     ?? "Couldn't turn this on. Please try again."
             }
         }
+    }
+
+    // MARK: - Appearance
+
+    private var appearanceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Home background")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(JourneyPalette.ink)
+                Text("Cream matches the sign-in screen. Forest is the original dark look.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(BBTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 10) {
+                ForEach(HomeStyle.allCases) { style in
+                    appearanceOption(style)
+                }
+            }
+        }
+        .padding(16)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                }
+        }
+    }
+
+    private func appearanceOption(_ style: HomeStyle) -> some View {
+        let isSelected = style == homeStyle
+        let palette = style.palette
+        return Button {
+            guard !isSelected else { return }
+            Haptics.selection()
+            withAnimation(.easeInOut(duration: 0.25)) { homeStyle = style }
+        } label: {
+            VStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: palette.backgroundColors,
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(alignment: .topLeading) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Capsule().fill(palette.accent).frame(width: 18, height: 3)
+                            Capsule().fill(palette.ink).frame(width: 36, height: 5)
+                            Capsule().fill(palette.positive).frame(width: 28, height: 4)
+                        }
+                        .padding(9)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    }
+                    .frame(height: 56)
+
+                HStack(spacing: 5) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 13))
+                    Text(style.title)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(isSelected ? JourneyPalette.gold : BBTheme.inkMuted)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? JourneyPalette.gold.opacity(0.6) : Color.white.opacity(0.08), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(BBPressStyle())
+        .accessibilityLabel("\(style.title) home background")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityIdentifier("settings.homeStyle.\(style.rawValue)")
     }
 
     // MARK: - Sections

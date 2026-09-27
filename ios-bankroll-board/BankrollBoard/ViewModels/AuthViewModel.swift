@@ -15,6 +15,7 @@ final class AuthViewModel {
         didSet { if errorMessage != nil { errorMessage = nil } }
     }
     private(set) var pendingProvider: AuthProvider?
+    private(set) var isUnlocking: Bool = false
     private(set) var errorMessage: String?
 
     private let service: any AuthService
@@ -23,7 +24,32 @@ final class AuthViewModel {
         self.service = service
     }
 
-    var isBusy: Bool { pendingProvider != nil }
+    var isBusy: Bool { pendingProvider != nil || isUnlocking }
+
+    enum QuickSignInResult {
+        case signedIn(AuthSession)
+        case usePassword
+        case stopped
+    }
+
+    /// Face ID sign-in. Cancelling is silent; "Use Password" hands back to the form.
+    func quickSignIn(with accounts: AccountStore) async -> QuickSignInResult {
+        guard !isBusy else { return .stopped }
+        isUnlocking = true
+        errorMessage = nil
+        defer { isUnlocking = false }
+        do {
+            return .signedIn(try await accounts.quickSignIn())
+        } catch BiometricError.cancelled {
+            return .stopped
+        } catch BiometricError.fallback {
+            return .usePassword
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? "Something went wrong. Please try again."
+            return .stopped
+        }
+    }
 
     var trimmedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines)

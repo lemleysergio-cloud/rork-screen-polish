@@ -11,9 +11,13 @@ import SwiftUI
 import UIKit
 
 struct AuthScreen: View {
+    /// Prompt Face ID as soon as the screen opens (cold launch only, not after logging out).
+    var autoPromptsQuickSignIn: Bool = false
     let onAuthenticated: (AuthSession) -> Void
 
+    @Environment(AccountStore.self) private var accounts
     @State private var model = AuthViewModel()
+    @State private var hasAutoPrompted: Bool = false
     @State private var hasAppeared: Bool = false
     @State private var showsForgotPassword: Bool = false
     @FocusState private var isEmailFocused: Bool
@@ -30,6 +34,21 @@ struct AuthScreen: View {
                 header
                     .padding(.top, 30)
                     .staggeredIn(1, hasAppeared: hasAppeared)
+
+                if accounts.canQuickSignIn, let account = accounts.quickSignInRecord?.account {
+                    VStack(spacing: 18) {
+                        QuickSignInButton(
+                            account: account,
+                            kind: accounts.biometricKind,
+                            isLoading: model.isUnlocking,
+                            action: quickSignIn
+                        )
+                        dividerLabel("or use your password")
+                    }
+                    .padding(.top, 28)
+                    .staggeredIn(2, hasAppeared: hasAppeared)
+                    .transition(.opacity)
+                }
 
                 VStack(spacing: 12) {
                     AuthEmailField(
@@ -59,7 +78,7 @@ struct AuthScreen: View {
 
                     continueButton
                 }
-                .padding(.top, 30)
+                .padding(.top, accounts.canQuickSignIn ? 18 : 30)
                 .staggeredIn(2, hasAppeared: hasAppeared)
 
                 orDivider
@@ -120,8 +139,19 @@ struct AuthScreen: View {
             ForgotPasswordScreen()
         }
         .onAppear {
+            accounts.refreshBiometrics()
+            if model.email.isEmpty, let email = accounts.quickSignInRecord?.account.email {
+                model.email = email
+            }
             withAnimation(.spring(response: 0.6, dampingFraction: 0.82)) {
                 hasAppeared = true
+            }
+            guard autoPromptsQuickSignIn, !hasAutoPrompted, accounts.canQuickSignIn else { return }
+            hasAutoPrompted = true
+            Task {
+                // Let the entrance animation settle before the system prompt covers it.
+                try? await Task.sleep(for: .milliseconds(500))
+                quickSignIn()
             }
         }
     }
@@ -180,13 +210,18 @@ struct AuthScreen: View {
     }
 
     private var orDivider: some View {
+        dividerLabel("or")
+    }
+
+    private func dividerLabel(_ text: String) -> some View {
         HStack(spacing: 14) {
             Rectangle()
                 .fill(AuthPalette.hairline)
                 .frame(height: 1)
-            Text("or")
+            Text(text)
                 .font(.system(size: 15))
                 .foregroundStyle(AuthPalette.inkMuted)
+                .fixedSize()
             Rectangle()
                 .fill(AuthPalette.hairline)
                 .frame(height: 1)
@@ -227,6 +262,22 @@ struct AuthScreen: View {
                 finish(session)
             } else {
                 Haptics.warning()
+            }
+        }
+    }
+
+    private func quickSignIn() {
+        Haptics.tap()
+        isEmailFocused = false
+        isPasswordFocused = false
+        Task {
+            switch await model.quickSignIn(with: accounts) {
+            case .signedIn(let session):
+                finish(session)
+            case .usePassword:
+                isPasswordFocused = true
+            case .stopped:
+                if model.errorMessage != nil { Haptics.warning() }
             }
         }
     }
@@ -291,4 +342,5 @@ extension View {
 
 #Preview {
     AuthScreen { _ in }
+        .environment(AccountStore())
 }

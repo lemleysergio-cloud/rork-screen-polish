@@ -9,7 +9,7 @@
 
 import Foundation
 
-nonisolated enum AuthProvider: String, Sendable {
+nonisolated enum AuthProvider: String, Codable, Sendable {
     case email
     case google
     case apple
@@ -41,6 +41,10 @@ nonisolated protocol AuthService: Sendable {
 
     /// Starts a third-party sign-in flow.
     func continueWith(_ provider: AuthProvider) async throws -> AuthSession
+
+    /// Resumes a session for an account the user unlocked with Face ID.
+    /// A real backend exchanges a Keychain-held refresh token here.
+    func restoreSession(for account: RememberedAccount) async throws -> AuthSession
 }
 
 /// Stand-in used until a real auth backend is connected: waits briefly, then succeeds.
@@ -57,5 +61,10 @@ nonisolated struct DemoAuthService: AuthService {
     func continueWith(_ provider: AuthProvider) async throws -> AuthSession {
         try await Task.sleep(for: .milliseconds(900))
         return AuthSession(provider: provider, email: nil)
+    }
+
+    func restoreSession(for account: RememberedAccount) async throws -> AuthSession {
+        try await Task.sleep(for: .milliseconds(450))
+        return AuthSession(provider: account.provider, email: account.email)
     }
 }

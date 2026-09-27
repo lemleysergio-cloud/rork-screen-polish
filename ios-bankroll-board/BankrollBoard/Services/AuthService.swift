@@ -34,7 +34,10 @@ nonisolated enum AuthError: LocalizedError, Sendable {
 
 nonisolated protocol AuthService: Sendable {
     /// Starts an email sign-in or sign-up for the given address.
-    func continueWithEmail(_ email: String) async throws -> AuthSession
+    func continueWithEmail(_ email: String, password: String) async throws -> AuthSession
+
+    /// Sends a password reset link to the given address.
+    func sendPasswordReset(_ email: String) async throws
 
     /// Starts a third-party sign-in flow.
     func continueWith(_ provider: AuthProvider) async throws -> AuthSession
@@ -42,9 +45,13 @@ nonisolated protocol AuthService: Sendable {
 
 /// Stand-in used until a real auth backend is connected: waits briefly, then succeeds.
 nonisolated struct DemoAuthService: AuthService {
-    func continueWithEmail(_ email: String) async throws -> AuthSession {
+    func continueWithEmail(_ email: String, password: String) async throws -> AuthSession {
         try await Task.sleep(for: .milliseconds(900))
         return AuthSession(provider: .email, email: email)
+    }
+
+    func sendPasswordReset(_ email: String) async throws {
+        try await Task.sleep(for: .milliseconds(900))
     }
 
     func continueWith(_ provider: AuthProvider) async throws -> AuthSession {

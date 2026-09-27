@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct RootShellView: View {
+    var onLogout: () -> Void = {}
+
     @State private var selectedTab: BBTab = .journey
 
     var body: some View {
@@ -23,11 +25,7 @@ struct RootShellView: View {
                 case .community:
                     CommunityScreen()
                 case .settings:
-                    BBPlaceholderScreen(
-                        eyebrow: "SETTINGS",
-                        title: "Settings",
-                        message: "Account, privacy controls, moderation tools, and responsible-gaming limits."
-                    )
+                    SettingsScreen(onLogout: onLogout)
                 }
             }
             .transition(.opacity)

@@ -20,4 +20,5 @@ enum AuthPalette {
     static let forestLight = Color(rgb: 0x1C3B29)
     static let gold = Color(rgb: 0xD4AF37)
     static let error = Color(rgb: 0xB5483C)
+    static let success = Color(rgb: 0x2F7D4F)
 }

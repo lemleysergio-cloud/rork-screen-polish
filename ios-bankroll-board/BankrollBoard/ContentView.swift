@@ -24,8 +24,12 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             } else if hasFinishedOnboarding {
-                RootShellView()
-                    .transition(.opacity)
+                RootShellView {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        isSignedIn = false
+                    }
+                }
+                .transition(.opacity)
             } else {
                 OnboardingFlowView()
                     .transition(.opacity)

@@ -2,7 +2,9 @@
 //  AuthScreen.swift
 //  BankrollBoard
 //
-//  Log in or sign up: logo, email + Continue, then Google and Apple.
+//  Log in or sign up: logo, email + password + Continue, then Google and Apple.
+//  Sections stagger in on first load; a full-screen forgot-password flow is
+//  one tap away.
 //
 
 import SwiftUI
@@ -12,7 +14,9 @@ struct AuthScreen: View {
 
     @State private var model = AuthViewModel()
     @State private var hasAppeared: Bool = false
+    @State private var showsForgotPassword: Bool = false
     @FocusState private var isEmailFocused: Bool
+    @FocusState private var isPasswordFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -20,26 +24,46 @@ struct AuthScreen: View {
                 BrandLogoView(size: 84)
                     .padding(.top, 44)
                     .scaleEffect(hasAppeared ? 1 : 0.85)
-                    .opacity(hasAppeared ? 1 : 0)
+                    .staggeredIn(0, hasAppeared: hasAppeared)
 
                 header
                     .padding(.top, 30)
-                    .offset(y: hasAppeared ? 0 : 10)
-                    .opacity(hasAppeared ? 1 : 0)
+                    .staggeredIn(1, hasAppeared: hasAppeared)
 
                 VStack(spacing: 12) {
                     AuthEmailField(
                         text: $model.email,
                         isFocused: $isEmailFocused,
                         onClear: { model.clearEmail() },
-                        onSubmit: submitEmail
+                        onSubmit: { isPasswordFocused = true },
+                        submitLabel: .next
                     )
+                    AuthPasswordField(
+                        text: $model.password,
+                        isFocused: $isPasswordFocused,
+                        onSubmit: submitCredentials
+                    )
+
+                    HStack {
+                        Spacer()
+                        Button("Forgot password?") {
+                            Haptics.selection()
+                            showsForgotPassword = true
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AuthPalette.forest)
+                        .accessibilityIdentifier("auth.forgotLink")
+                    }
+                    .padding(.top, 2)
+
                     continueButton
                 }
                 .padding(.top, 30)
+                .staggeredIn(2, hasAppeared: hasAppeared)
 
                 orDivider
                     .padding(.vertical, 20)
+                    .staggeredIn(3, hasAppeared: hasAppeared)
 
                 VStack(spacing: 12) {
                     AuthProviderButton(
@@ -63,6 +87,7 @@ struct AuthScreen: View {
                     }
                     .accessibilityIdentifier("auth.apple")
                 }
+                .staggeredIn(4, hasAppeared: hasAppeared)
 
                 if let message = model.errorMessage {
                     Label(message, systemImage: "exclamationmark.circle")
@@ -76,6 +101,7 @@ struct AuthScreen: View {
                 footer
                     .padding(.top, 36)
                     .padding(.bottom, 24)
+                    .staggeredIn(5, hasAppeared: hasAppeared)
             }
             .padding(.horizontal, 24)
             .frame(maxWidth: 480)
@@ -85,9 +111,12 @@ struct AuthScreen: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollBounceBehavior(.basedOnSize)
         .allowsHitTesting(!model.isBusy)
-        .background { background }
+        .background { AuthBackground() }
         .preferredColorScheme(.light)
         .accessibilityIdentifier("auth.page")
+        .fullScreenCover(isPresented: $showsForgotPassword) {
+            ForgotPasswordScreen()
+        }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.82)) {
                 hasAppeared = true
@@ -113,9 +142,13 @@ struct AuthScreen: View {
         .multilineTextAlignment(.center)
     }
 
+    private var canSubmit: Bool {
+        model.isEmailValid && model.isPasswordValid
+    }
+
     private var continueButton: some View {
         let isLoading = model.pendingProvider == .email
-        return Button(action: submitEmail) {
+        return Button(action: submitCredentials) {
             ZStack {
                 Text("Continue")
                     .font(.system(size: 17, weight: .semibold))
@@ -137,14 +170,14 @@ struct AuthScreen: View {
                             endPoint: .bottom
                         )
                     )
-                    .shadow(color: AuthPalette.forest.opacity(model.isEmailValid ? 0.22 : 0), radius: 12, y: 6)
+                    .shadow(color: AuthPalette.forest.opacity(canSubmit ? 0.22 : 0), radius: 12, y: 6)
             }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(BBPressStyle())
-        .disabled(!model.isEmailValid)
-        .opacity(model.isEmailValid ? 1 : 0.4)
-        .animation(.easeOut(duration: 0.2), value: model.isEmailValid)
+        .disabled(!canSubmit)
+        .opacity(canSubmit ? 1 : 0.4)
+        .animation(.easeOut(duration: 0.2), value: canSubmit)
         .accessibilityIdentifier("auth.continue")
     }
 
@@ -171,7 +204,44 @@ struct AuthScreen: View {
             .padding(.horizontal, 12)
     }
 
-    private var background: some View {
+    // MARK: - Actions
+
+    private func submitCredentials() {
+        guard canSubmit else { return }
+        Haptics.tap()
+        isEmailFocused = false
+        isPasswordFocused = false
+        Task {
+            if let session = await model.submitCredentials() {
+                finish(session)
+            } else {
+                Haptics.warning()
+            }
+        }
+    }
+
+    private func continueWith(_ provider: AuthProvider) {
+        Haptics.tap()
+        isEmailFocused = false
+        isPasswordFocused = false
+        Task {
+            if let session = await model.continueWith(provider) {
+                finish(session)
+            } else {
+                Haptics.warning()
+            }
+        }
+    }
+
+    private func finish(_ session: AuthSession) {
+        Haptics.success()
+        onAuthenticated(session)
+    }
+}
+
+/// Shared paper-toned backdrop for the auth screens.
+struct AuthBackground: View {
+    var body: some View {
         ZStack {
             LinearGradient(
                 colors: [AuthPalette.paperLight, AuthPalette.paper, AuthPalette.paperDeep],
@@ -193,37 +263,18 @@ struct AuthScreen: View {
         }
         .ignoresSafeArea()
     }
+}
 
-    // MARK: - Actions
-
-    private func submitEmail() {
-        guard model.isEmailValid else { return }
-        Haptics.tap()
-        isEmailFocused = false
-        Task {
-            if let session = await model.submitEmail() {
-                finish(session)
-            } else {
-                Haptics.warning()
-            }
-        }
-    }
-
-    private func continueWith(_ provider: AuthProvider) {
-        Haptics.tap()
-        isEmailFocused = false
-        Task {
-            if let session = await model.continueWith(provider) {
-                finish(session)
-            } else {
-                Haptics.warning()
-            }
-        }
-    }
-
-    private func finish(_ session: AuthSession) {
-        Haptics.success()
-        onAuthenticated(session)
+private extension View {
+    /// Fades + slides content in, delayed by its position in the load sequence.
+    func staggeredIn(_ index: Int, hasAppeared: Bool) -> some View {
+        opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 18)
+            .animation(
+                .spring(response: 0.55, dampingFraction: 0.85)
+                    .delay(Double(index) * 0.075),
+                value: hasAppeared
+            )
     }
 }
 

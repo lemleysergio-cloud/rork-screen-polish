@@ -11,6 +11,9 @@ final class AuthViewModel {
     var email: String = "" {
         didSet { if errorMessage != nil { errorMessage = nil } }
     }
+    var password: String = "" {
+        didSet { if errorMessage != nil { errorMessage = nil } }
+    }
     private(set) var pendingProvider: AuthProvider?
     private(set) var errorMessage: String?
 
@@ -41,10 +44,37 @@ final class AuthViewModel {
         email = ""
     }
 
-    func submitEmail() async -> AuthSession? {
-        guard isEmailValid, !isBusy else { return nil }
+    /// Lightweight length check — the server remains the source of truth.
+    var isPasswordValid: Bool {
+        password.trimmingCharacters(in: .whitespacesAndNewlines).count >= 6
+    }
+
+    func clearAll() {
+        email = ""
+        password = ""
+    }
+
+    func submitCredentials() async -> AuthSession? {
+        guard isEmailValid, isPasswordValid, !isBusy else { return nil }
+        let secret = password.trimmingCharacters(in: .whitespacesAndNewlines)
         return await run(.email) { [service, trimmedEmail] in
-            try await service.continueWithEmail(trimmedEmail)
+            try await service.continueWithEmail(trimmedEmail, password: secret)
+        }
+    }
+
+    /// Sends a reset link; returns `true` when the request succeeded.
+    func sendPasswordReset() async -> Bool {
+        guard isEmailValid, !isBusy else { return false }
+        pendingProvider = .email
+        errorMessage = nil
+        defer { pendingProvider = nil }
+        do {
+            try await service.sendPasswordReset(trimmedEmail)
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? "Something went wrong. Please try again."
+            return false
         }
     }
 

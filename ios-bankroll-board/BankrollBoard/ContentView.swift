@@ -10,19 +10,28 @@ struct ContentView: View {
     @AppStorage("bb.isSignedIn") private var isSignedIn: Bool = false
     /// Onboarding runs once, then the app lands on the Journey map.
     @State private var hasFinishedOnboarding: Bool = true
-    @State private var accounts = AccountStore()
+    @State private var accounts: AccountStore
     @State private var showsQuickSignInOffer: Bool = false
     /// After logging out, don't pop Face ID straight back up.
     @State private var didSignOutThisLaunch: Bool = false
     @Environment(\.scenePhase) private var scenePhase
+    private let authService: any AuthService
 
     /// UI tests pass `-skipAuth` to launch straight into the app.
     private let skipsAuth: Bool = ProcessInfo.processInfo.arguments.contains("-skipAuth")
 
+    init(authService: any AuthService = DemoAuthService()) {
+        self.authService = authService
+        _accounts = State(initialValue: AccountStore(service: authService))
+    }
+
     var body: some View {
         ZStack {
             if !isSignedIn && !skipsAuth {
-                AuthScreen(autoPromptsQuickSignIn: !didSignOutThisLaunch) { session in
+                AuthScreen(
+                    autoPromptsQuickSignIn: !didSignOutThisLaunch,
+                    service: authService
+                ) { session in
                     signIn(session)
                 }
                 .transition(.opacity)

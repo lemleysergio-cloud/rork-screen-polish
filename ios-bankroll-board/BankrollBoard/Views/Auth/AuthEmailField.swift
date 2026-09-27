@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Rounded email input with a clear button and a forest focus ring.
 /// Optional inline label and validity checkmark for the forgot-password flow.
@@ -13,6 +14,9 @@ struct AuthEmailField: View {
     let onClear: () -> Void
     let onSubmit: () -> Void
     var label: String? = nil
+    var placeholder: String = "Email address"
+    var keyboardType: UIKeyboardType = .emailAddress
+    var contentType: UITextContentType? = .emailAddress
     /// When non-nil and `true`, shows a green check instead of the clear button.
     var isValid: Bool? = nil
     var submitLabel: SubmitLabel = .continue
@@ -25,8 +29,8 @@ struct AuthEmailField: View {
             .font(.system(size: 17))
             .foregroundStyle(AuthPalette.ink)
             .tint(AuthPalette.forest)
-            .keyboardType(.emailAddress)
-            .textContentType(.emailAddress)
+            .keyboardType(keyboardType)
+            .textContentType(contentType)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .submitLabel(submitLabel)
@@ -88,7 +92,7 @@ struct AuthEmailField: View {
             TextField(
                 "",
                 text: $text,
-                prompt: Text("Email address").foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
+                prompt: Text(placeholder).foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
             )
         }
     }

@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct AuthScreen: View {
     let onAuthenticated: (AuthSession) -> Void
@@ -109,6 +110,7 @@ struct AuthScreen: View {
             .animation(.easeOut(duration: 0.2), value: model.errorMessage)
         }
         .scrollDismissesKeyboard(.interactively)
+        .dismissesKeyboardOnTap()
         .scrollBounceBehavior(.basedOnSize)
         .allowsHitTesting(!model.isBusy)
         .background { AuthBackground() }
@@ -120,10 +122,6 @@ struct AuthScreen: View {
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.82)) {
                 hasAppeared = true
-            }
-            Task {
-                try? await Task.sleep(for: .milliseconds(550))
-                isEmailFocused = true
             }
         }
     }
@@ -275,6 +273,19 @@ private extension View {
                     .delay(Double(index) * 0.075),
                 value: hasAppeared
             )
+    }
+}
+
+/// Tapping anywhere on the view resigns the first responder, so the keyboard
+/// dismisses without hunting for the exact right spot.
+extension View {
+    func dismissesKeyboardOnTap() -> some View {
+        onTapGesture {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil, from: nil, for: nil
+            )
+        }
     }
 }
 

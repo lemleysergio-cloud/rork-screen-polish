@@ -40,6 +40,7 @@ struct ForgotPasswordScreen: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: hasSent)
             }
             .scrollDismissesKeyboard(.interactively)
+            .dismissesKeyboardOnTap()
             .allowsHitTesting(!model.isBusy)
         }
         .preferredColorScheme(.light)

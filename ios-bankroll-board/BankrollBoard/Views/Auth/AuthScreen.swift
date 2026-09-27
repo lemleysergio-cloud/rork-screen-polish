@@ -17,8 +17,8 @@ struct AuthScreen: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                BrandLogoView(size: 76)
-                    .padding(.top, 52)
+                BrandLogoView(size: 84)
+                    .padding(.top, 44)
                     .scaleEffect(hasAppeared ? 1 : 0.85)
                     .opacity(hasAppeared ? 1 : 0)
 

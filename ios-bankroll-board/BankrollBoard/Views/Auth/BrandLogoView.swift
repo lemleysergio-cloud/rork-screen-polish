@@ -17,7 +17,8 @@ struct BrandLogoView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: size, height: size)
+                    .frame(width: size, height: size * 1.22)
+                    .shadow(color: AuthPalette.forest.opacity(0.22), radius: 18, y: 10)
             } else {
                 monogram
             }

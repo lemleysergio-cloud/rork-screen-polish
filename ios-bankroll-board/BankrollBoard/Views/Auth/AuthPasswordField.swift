@@ -19,9 +19,17 @@ struct AuthPasswordField: View {
         HStack(spacing: 4) {
             Group {
                 if isVisible {
-                    TextField("", text: $text)
+                    TextField(
+                        "",
+                        text: $text,
+                        prompt: Text("Password").foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
+                    )
                 } else {
-                    SecureField("", text: $text)
+                    SecureField(
+                        "",
+                        text: $text,
+                        prompt: Text("Password").foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
+                    )
                 }
             }
             .font(.system(size: 17))

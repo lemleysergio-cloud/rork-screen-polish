@@ -22,6 +22,7 @@ struct AuthScreen: View {
     @FocusState private var isUsernameFocused: Bool
     @FocusState private var isEmailFocused: Bool
     @FocusState private var isPasswordFocused: Bool
+    @FocusState private var isSignUpCodeFocused: Bool
 
     init(
         autoPromptsQuickSignIn: Bool = false,
@@ -46,36 +47,42 @@ struct AuthScreen: View {
                     .padding(.top, 18)
                     .staggeredIn(1, hasAppeared: hasAppeared)
 
-                modePicker
-                    .padding(.top, 22)
-                    .staggeredIn(2, hasAppeared: hasAppeared)
+                if model.isAwaitingSignUpVerification {
+                    signUpVerificationForm
+                        .padding(.top, 28)
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                } else {
+                    modePicker
+                        .padding(.top, 22)
+                        .staggeredIn(2, hasAppeared: hasAppeared)
 
-                if model.mode == .login,
-                   accounts.canQuickSignIn,
-                   let account = accounts.quickSignInRecord?.account {
-                    VStack(spacing: 16) {
-                        QuickSignInButton(
-                            account: account,
-                            kind: accounts.biometricKind,
-                            isLoading: model.isUnlocking,
-                            action: quickSignIn
-                        )
-                        dividerLabel("or use your password")
+                    if model.mode == .login,
+                       accounts.canQuickSignIn,
+                       let account = accounts.quickSignInRecord?.account {
+                        VStack(spacing: 16) {
+                            QuickSignInButton(
+                                account: account,
+                                kind: accounts.biometricKind,
+                                isLoading: model.isUnlocking,
+                                action: quickSignIn
+                            )
+                            dividerLabel("or use your password")
+                        }
+                        .padding(.top, 22)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
-                    .padding(.top, 22)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    credentialForm
+                        .padding(.top, 22)
+                        .staggeredIn(3, hasAppeared: hasAppeared)
+
+                    dividerLabel("or continue with")
+                        .padding(.vertical, 18)
+                        .staggeredIn(4, hasAppeared: hasAppeared)
+
+                    providerButtons
+                        .staggeredIn(5, hasAppeared: hasAppeared)
                 }
-
-                credentialForm
-                    .padding(.top, 22)
-                    .staggeredIn(3, hasAppeared: hasAppeared)
-
-                dividerLabel("or continue with")
-                    .padding(.vertical, 18)
-                    .staggeredIn(4, hasAppeared: hasAppeared)
-
-                providerButtons
-                    .staggeredIn(5, hasAppeared: hasAppeared)
 
                 if let message = model.errorMessage {
                     Label(message, systemImage: "exclamationmark.circle.fill")
@@ -87,10 +94,12 @@ struct AuthScreen: View {
                         .accessibilityIdentifier("auth.error")
                 }
 
-                footer
-                    .padding(.top, 26)
-                    .padding(.bottom, 24)
-                    .staggeredIn(6, hasAppeared: hasAppeared)
+                if !model.isAwaitingSignUpVerification {
+                    footer
+                        .padding(.top, 26)
+                        .padding(.bottom, 24)
+                        .staggeredIn(6, hasAppeared: hasAppeared)
+                }
             }
             .padding(.horizontal, 24)
             .frame(maxWidth: 480)
@@ -127,13 +136,17 @@ struct AuthScreen: View {
 
     private var header: some View {
         VStack(spacing: 7) {
-            Text(model.mode == .login ? "Welcome back" : "Create your account")
+            Text(model.isAwaitingSignUpVerification
+                 ? "Check your email"
+                 : (model.mode == .login ? "Welcome back" : "Create your account"))
                 .font(BBTheme.headline(31))
                 .foregroundStyle(AuthPalette.ink)
                 .contentTransition(.opacity)
-            Text(model.mode == .login
-                 ? "Your bankroll, offers, and progress are ready."
-                 : "Start tracking every deposit and payout in one place.")
+            Text(model.isAwaitingSignUpVerification
+                 ? "Enter the six-digit code sent to \(model.trimmedEmail)."
+                 : (model.mode == .login
+                    ? "Your bankroll, offers, and progress are ready."
+                    : "Start tracking every deposit and payout in one place."))
                 .font(.system(size: 15))
                 .foregroundStyle(AuthPalette.inkMuted)
                 .multilineTextAlignment(.center)
@@ -283,6 +296,74 @@ struct AuthScreen: View {
         .accessibilityIdentifier("auth.continue")
     }
 
+    private var signUpVerificationForm: some View {
+        VStack(spacing: 16) {
+            TextField("000000", text: $model.signUpCode)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(AuthPalette.ink)
+                .multilineTextAlignment(.center)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .focused($isSignUpCodeFocused)
+                .onChange(of: model.signUpCode) { _, value in
+                    let digits = value.filter(\.isNumber)
+                    if digits != value || digits.count > 6 {
+                        model.signUpCode = String(digits.prefix(6))
+                    }
+                }
+                .frame(height: 64)
+                .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(AuthPalette.field))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .stroke(
+                            isSignUpCodeFocused ? AuthPalette.communityBlue : AuthPalette.hairline,
+                            lineWidth: isSignUpCodeFocused ? 1.5 : 1
+                        )
+                }
+                .accessibilityLabel("Email verification code")
+                .accessibilityIdentifier("auth.signup.code")
+
+            Button(action: verifySignUp) {
+                ZStack {
+                    Text("Verify and Create Account")
+                        .font(.system(size: 17, weight: .bold))
+                        .opacity(model.pendingProvider == .email ? 0 : 1)
+                    if model.pendingProvider == .email { ProgressView().tint(.white) }
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .fill(LinearGradient(
+                            colors: [AuthPalette.forestLight, AuthPalette.forest],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                }
+            }
+            .buttonStyle(BBPressStyle())
+            .disabled(!model.isSignUpCodeValid || model.isBusy)
+            .opacity(model.isSignUpCodeValid ? 1 : 0.42)
+            .accessibilityIdentifier("auth.signup.verify")
+
+            HStack(spacing: 24) {
+                Button("Change email") {
+                    model.cancelSignUpVerification()
+                }
+                Button("Send a new code") {
+                    Task {
+                        if await model.resendSignUpVerification() { Haptics.success() }
+                        else { Haptics.warning() }
+                    }
+                }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(AuthPalette.communityBlue)
+        }
+        .onAppear { isSignUpCodeFocused = true }
+    }
+
     private var providerButtons: some View {
         VStack(spacing: 12) {
             AuthProviderButton(
@@ -338,6 +419,21 @@ struct AuthScreen: View {
         Task {
             if let session = await model.submitCredentials() {
                 finish(session)
+            } else if model.isAwaitingSignUpVerification {
+                Haptics.success()
+            } else {
+                Haptics.warning()
+            }
+        }
+    }
+
+    private func verifySignUp() {
+        guard model.isSignUpCodeValid else { return }
+        Haptics.tap()
+        isSignUpCodeFocused = false
+        Task {
+            if let session = await model.verifySignUp() {
+                finish(session)
             } else {
                 Haptics.warning()
             }
@@ -350,7 +446,7 @@ struct AuthScreen: View {
         Task {
             if let session = await model.continueWith(provider) {
                 finish(session)
-            } else {
+            } else if model.errorMessage != nil {
                 Haptics.warning()
             }
         }
@@ -374,6 +470,7 @@ struct AuthScreen: View {
         isUsernameFocused = false
         isEmailFocused = false
         isPasswordFocused = false
+        isSignUpCodeFocused = false
     }
 
     private func finish(_ session: AuthSession) {

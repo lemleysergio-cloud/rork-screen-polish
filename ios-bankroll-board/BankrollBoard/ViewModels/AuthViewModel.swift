@@ -20,6 +20,7 @@ final class AuthViewModel {
     var username: String = "" { didSet { clearError() } }
     var email: String = "" { didSet { clearError() } }
     var password: String = "" { didSet { clearError() } }
+    var signUpCode: String = "" { didSet { clearError() } }
 
     var resetCode: String = "" { didSet { clearError() } }
     var newPassword: String = "" { didSet { clearError() } }
@@ -29,6 +30,7 @@ final class AuthViewModel {
     private(set) var pendingProvider: AuthProvider?
     private(set) var isUnlocking: Bool = false
     private(set) var errorMessage: String?
+    private(set) var signUpChallenge: SignUpChallenge?
 
     private var resetChallenge: PasswordResetChallenge?
     private let service: any AuthService
@@ -38,6 +40,7 @@ final class AuthViewModel {
     }
 
     var isBusy: Bool { pendingProvider != nil || isUnlocking }
+    var isAwaitingSignUpVerification: Bool { signUpChallenge != nil }
 
     enum QuickSignInResult {
         case signedIn(AuthSession)
@@ -72,6 +75,10 @@ final class AuthViewModel {
         resetCode.count == 6 && resetCode.allSatisfy(\.isNumber)
     }
 
+    var isSignUpCodeValid: Bool {
+        signUpCode.count == 6 && signUpCode.allSatisfy(\.isNumber)
+    }
+
     var canSetNewPassword: Bool {
         newPassword.count >= 8 && newPassword == confirmedPassword
     }
@@ -80,6 +87,8 @@ final class AuthViewModel {
         guard mode != newMode, !isBusy else { return }
         mode = newMode
         errorMessage = nil
+        signUpChallenge = nil
+        signUpCode = ""
         password = ""
         if newMode == .signUp, email.isEmpty, identifier.contains("@") {
             email = trimmedIdentifier
@@ -102,10 +111,48 @@ final class AuthViewModel {
                 try await service.signIn(identifier: trimmedIdentifier, password: secret)
             }
         case .signUp:
-            return await run(.email) { [service, trimmedUsername, trimmedEmail] in
-                try await service.signUp(username: trimmedUsername, email: trimmedEmail, password: secret)
+            pendingProvider = .email
+            errorMessage = nil
+            defer { pendingProvider = nil }
+            do {
+                let result = try await service.signUp(
+                    username: trimmedUsername,
+                    email: trimmedEmail,
+                    password: secret
+                )
+                switch result {
+                case .complete(let session): return session
+                case .verificationRequired(let challenge):
+                    signUpChallenge = challenge
+                    signUpCode = ""
+                    return nil
+                }
+            } catch {
+                setError(error)
+                return nil
             }
         }
+    }
+
+    func verifySignUp() async -> AuthSession? {
+        guard isSignUpCodeValid, let signUpChallenge, !isBusy else { return nil }
+        return await run(.email) { [service, signUpCode] in
+            try await service.verifySignUp(code: signUpCode, challenge: signUpChallenge)
+        }
+    }
+
+    func resendSignUpVerification() async -> Bool {
+        guard let signUpChallenge, !isBusy else { return false }
+        return await runReset {
+            self.signUpChallenge = try await service.resendSignUpVerification(challenge: signUpChallenge)
+        }
+    }
+
+    func cancelSignUpVerification() {
+        guard !isBusy else { return }
+        signUpChallenge = nil
+        signUpCode = ""
+        errorMessage = nil
     }
 
     func requestPasswordReset() async -> Bool {
@@ -170,6 +217,8 @@ final class AuthViewModel {
         defer { pendingProvider = nil }
         do {
             return try await operation()
+        } catch AuthError.cancelled {
+            return nil
         } catch {
             setError(error)
             return nil

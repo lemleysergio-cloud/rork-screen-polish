@@ -32,7 +32,12 @@ struct AuthFlowTests {
 
         model.password = "12345678"
         #expect(model.canSubmitCredentials)
-        let session = await model.submitCredentials()
+        let pendingSession = await model.submitCredentials()
+        #expect(pendingSession == nil)
+        #expect(model.isAwaitingSignUpVerification)
+
+        model.signUpCode = "123456"
+        let session = await model.verifySignUp()
         #expect(session?.username == "board_player")
         #expect(session?.email == "player@example.com")
     }
@@ -69,7 +74,9 @@ struct AuthFlowTests {
     }
 }
 
-private nonisolated struct AuthStub: AuthService {
+private struct AuthStub: AuthService {
+    var supportsQuickSignIn: Bool { false }
+
     func signIn(identifier: String, password: String) async throws -> AuthSession {
         AuthSession(
             provider: .email,
@@ -78,9 +85,15 @@ private nonisolated struct AuthStub: AuthService {
         )
     }
 
-    func signUp(username: String, email: String, password: String) async throws -> AuthSession {
-        AuthSession(provider: .email, email: email, username: username)
+    func signUp(username: String, email: String, password: String) async throws -> SignUpResult {
+        .verificationRequired(SignUpChallenge(id: "signup-test", email: email, username: username))
     }
+
+    func verifySignUp(code: String, challenge: SignUpChallenge) async throws -> AuthSession {
+        AuthSession(provider: .email, email: challenge.email, username: challenge.username)
+    }
+
+    func resendSignUpVerification(challenge: SignUpChallenge) async throws -> SignUpChallenge { challenge }
 
     func requestPasswordReset(email: String) async throws -> PasswordResetChallenge {
         PasswordResetChallenge(id: "test", email: email)
@@ -96,4 +109,7 @@ private nonisolated struct AuthStub: AuthService {
     func restoreSession(for account: RememberedAccount) async throws -> AuthSession {
         AuthSession(provider: account.provider, email: account.email)
     }
+
+    func currentSession() async -> AuthSession? { nil }
+    func signOut() async throws {}
 }

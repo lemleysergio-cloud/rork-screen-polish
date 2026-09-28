@@ -51,11 +51,11 @@ final class AccountStore {
     var isQuickSignInEnabled: Bool { quickSignInRecord != nil }
 
     /// Show the Face ID button on the login screen.
-    var canQuickSignIn: Bool { isQuickSignInEnabled && canUseBiometrics }
+    var canQuickSignIn: Bool { service.supportsQuickSignIn && isQuickSignInEnabled && canUseBiometrics }
 
     /// Offer to turn on Face ID right after a password sign-in.
     var shouldOfferQuickSignIn: Bool {
-        canUseBiometrics && !isQuickSignInEnabled && !hasAnsweredOffer
+        service.supportsQuickSignIn && canUseBiometrics && !isQuickSignInEnabled && !hasAnsweredOffer
     }
 
     // MARK: - Session

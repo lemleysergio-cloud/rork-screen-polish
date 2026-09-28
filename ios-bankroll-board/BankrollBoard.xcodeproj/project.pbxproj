@@ -23,15 +23,32 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXBuildFile section */
+		A1C1E2F3A4B5C6D7E8F90101 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1C1E2F3A4B5C6D7E8F90103 /* ClerkKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		105FC57A2E9EAD3100EA8BCF /* BankrollBoard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BankrollBoard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5892E9EAD3200EA8BCF /* BankrollBoardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BankrollBoardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5932E9EAD3200EA8BCF /* BankrollBoardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BankrollBoardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1C1E2F3A4B5C6D7E8F90104 /* Exceptions for "BankrollBoard" folder in "BankrollBoard" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 105FC5792E9EAD3100EA8BCF /* BankrollBoard */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		105FC57C2E9EAD3100EA8BCF /* BankrollBoard */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1C1E2F3A4B5C6D7E8F90104 /* Exceptions for "BankrollBoard" folder in "BankrollBoard" target */,
+			);
 			path = BankrollBoard;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C1E2F3A4B5C6D7E8F90101 /* ClerkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +130,7 @@
 			);
 			name = BankrollBoard;
 			packageProductDependencies = (
+				A1C1E2F3A4B5C6D7E8F90103 /* ClerkKit */,
 			);
 			productName = BankrollBoard;
 			productReference = 105FC57A2E9EAD3100EA8BCF /* BankrollBoard.app */;
@@ -194,6 +213,9 @@
 				Base,
 			);
 			mainGroup = 105FC5712E9EAD3100EA8BCF;
+			packageReferences = (
+				A1C1E2F3A4B5C6D7E8F90102 /* XCRemoteSwiftPackageReference "clerk-ios" */,
+			);
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 105FC57B2E9EAD3100EA8BCF /* Products */;
@@ -395,11 +417,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BankrollBoard/BankrollBoard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 3VNHNWEW8L;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				CLERK_PUBLISHABLE_KEY = "pk_test_c3VwZXJiLXRhZHBvbGUtMzEuY2xlcmsuYWNjb3VudHMuZGV2JA==";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BankrollBoard/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to sign in to Bankroll Board without typing your password.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -412,7 +437,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.rork.dnql1pdj2fa2uwrbtn2hw;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bettingclarity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -429,11 +454,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BankrollBoard/BankrollBoard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 3VNHNWEW8L;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				CLERK_PUBLISHABLE_KEY = "pk_test_c3VwZXJiLXRhZHBvbGUtMzEuY2xlcmsuYWNjb3VudHMuZGV2JA==";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BankrollBoard/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to sign in to Bankroll Board without typing your password.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -446,7 +474,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.rork.dnql1pdj2fa2uwrbtn2hw;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bettingclarity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -582,6 +610,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1C1E2F3A4B5C6D7E8F90102 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.5.7;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1C1E2F3A4B5C6D7E8F90103 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C1E2F3A4B5C6D7E8F90102 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 105FC5722E9EAD3100EA8BCF /* Project object */;
 }

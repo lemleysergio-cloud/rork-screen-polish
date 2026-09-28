@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Rounded password input with an eye toggle that reveals the text.
 struct AuthPasswordField: View {
     @Binding var text: String
     let isFocused: FocusState<Bool>.Binding
     let onSubmit: () -> Void
+    var placeholder: String = "Password"
+    var contentType: UITextContentType? = .password
 
     @State private var isVisible: Bool = false
 
@@ -22,20 +25,20 @@ struct AuthPasswordField: View {
                     TextField(
                         "",
                         text: $text,
-                        prompt: Text("Password").foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
+                        prompt: Text(placeholder).foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
                     )
                 } else {
                     SecureField(
                         "",
                         text: $text,
-                        prompt: Text("Password").foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
+                        prompt: Text(placeholder).foregroundStyle(AuthPalette.inkMuted.opacity(0.8))
                     )
                 }
             }
             .font(.system(size: 17))
             .foregroundStyle(AuthPalette.ink)
             .tint(AuthPalette.forest)
-            .textContentType(.password)
+            .textContentType(contentType)
             .submitLabel(.continue)
             .focused(isFocused)
             .onSubmit(onSubmit)

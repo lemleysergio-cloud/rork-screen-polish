@@ -16,7 +16,7 @@ nonisolated struct RememberedAccount: Codable, Equatable, Sendable {
     }
 
     init(session: AuthSession) {
-        self.init(provider: session.provider, email: session.email)
+        self.init(provider: session.provider, email: session.email ?? session.username)
     }
 
     var displayName: String {
@@ -38,7 +38,7 @@ nonisolated struct RememberedAccount: Codable, Equatable, Sendable {
 
     var providerLine: String {
         switch provider {
-        case .email: return "Signed in with email"
+        case .email: return email?.contains("@") == true ? "Signed in with email" : "Signed in with username"
         case .google: return "Signed in with Google"
         case .apple: return "Signed in with Apple"
         }
